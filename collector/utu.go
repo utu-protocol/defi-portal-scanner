@@ -13,7 +13,7 @@ import (
 
 // Types definitions
 const (
-	TypeDefiProtocol = "DefiProtocol"
+	TypeDefiProtocol = "DeFiProtocol"
 	TypeAddress      = "Address"
 )
 
