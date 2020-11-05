@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -18,138 +16,187 @@ import (
 	"github.com/utu-crowdsale/defi-portal-scanner/utils"
 )
 
-type TxStats struct {
-	In  int
-	Out int
+func topic2Addr(l *types.Log, index int) string {
+	return common.BytesToAddress(l.Topics[index].Bytes()).Hex()
 }
 
-var (
-	tokenNames map[string]Token
-)
-
-func init() {
-	// init vars
-	tokenNames = make(map[string]Token)
-}
-
-// EthEvent an contract interaction
-type EthEvent struct {
-	BlockNumber     uint64    `json:"block_number,omitempty"`
-	BlockTime       time.Time `json:"block_time,omitempty"`
-	ContractAddress string    `json:"contract_address"`
-	ContractName    string    `json:"contract_name"`
-	TransactionHash string    `json:"tx_hash,omitempty"`
-	FromAddress     string    `json:"from_address,omitempty"`
-	FromName        string    `json:"from_name,omitempty"`
-	ToAddress       string    `json:"to_address,omitempty"`
-	ToName          string    `json:"to_name,omitempty"`
-	Topics          []string  `json:"topics,omitempty"`
-	Action          string    `json:"action,omitempty"`
-	Amount          uint64    `json:"amount,omitempty"`
-}
-
-// LogEvent print an event on stdout
-func LogEvent(evt *EthEvent) []byte {
-
-	format := "%20s: %v"
-	log.Printf(format, "block_number", fmt.Sprint("https://etherscan.io/blocks/", evt.BlockNumber))
-	log.Printf(format, "block_time", evt.BlockTime)
-	log.Printf(format, "contract_address", fmt.Sprint("https://etherscan.io/address/", evt.ContractAddress))
-	log.Printf(format, "contract_name", evt.ContractName)
-	log.Printf(format, "tx_hash", fmt.Sprint("https://etherscan.io/tx/", evt.TransactionHash))
-	log.Printf(format, "from_address", fmt.Sprint("https://etherscan.io/address/", evt.FromAddress))
-	log.Printf(format, "from_name", evt.FromName)
-	log.Printf(format, "to_address", fmt.Sprint("https://etherscan.io/address/", evt.ToAddress))
-	log.Printf(format, "to_name", evt.ToName)
-	log.Printf(format, "action", evt.Action)
-	log.Printf(format, "amount", evt.Amount)
-	log.Printf(format, "topics", strings.Join(evt.Topics, "\n\t"))
-
-	if evt.ContractAddress == evt.FromAddress {
-		log.Warnf("ACTION %s: CONTRACT and SENDER match: %s (%s)", evt.Action, evt.ContractAddress, evt.ContractName)
-	}
-	if evt.ContractAddress == evt.ToAddress {
-		log.Warnf("ACTION %s: CONTRACT and RECIPIENT match: %s (%s)", evt.Action, evt.ContractAddress, evt.ContractName)
-	}
-	if evt.FromAddress == evt.ToAddress {
-		log.Warnf("ACTION %s: SENDER and RECIPIENT match: %s (%s)", evt.Action, evt.ContractAddress, evt.ContractName)
-	}
-
-	log.Println("-------- -------- -------- --------")
-	data, _ := json.Marshal(evt)
-	return data
-}
-
-func tokenName(address string) (name string) {
-	t, found := tokenNames[strings.ToLower(address)]
+func criteria(address string) (entity *TrustEntity, isNew bool) {
+	// cache lookup
+	label, typ, found := cacheGet(address)
 	if !found {
-		return
+		// here is a user, we store 0x123, address, address
+		typ = TypeAddress
+		label = typ
+		cachePush(address, label, typ)
+		isNew = true
 	}
-	name = t.Name
+	// create the entity to be used as criteria
+	entity = NewTrustEntity()
+	entity.Type = typ
+	entity.Ids = map[string]string{label: address}
 	return
 }
 
-func ParseLog(vLog types.Log, client *ethclient.Client) (m *EthEvent, err error) {
-	m = &EthEvent{
-		BlockNumber:     vLog.BlockNumber,
-		TransactionHash: vLog.TxHash.Hex(),
-		ContractAddress: vLog.Address.Hex(),
-		ContractName:    tokenName(vLog.Address.Hex()),
-	}
+// ParseLog take a log and return an Event
+func ParseLog(vLog *types.Log, client *ethclient.Client) (cs TrustAPIChangeSet, err error) {
+
 	// action
-	for _, t := range vLog.Topics {
-		m.Topics = append(m.Topics, t.Hex())
-	}
-	if action, found := eventNames[m.Topics[0]]; !found {
-		log.Errorf("undefined name for action signature %s", m.Topics[0])
-	} else {
-		m.Action = action
+	action, found := eventNames[vLog.Topics[0].Hex()]
+	if !found {
+		err = fmt.Errorf("undefined name for action signature %s", vLog.Topics[0].Hex())
+		log.Error(err)
+		return
 	}
 
 	// recipient
-	tx, isPending, err := client.TransactionByHash(context.Background(), vLog.TxHash)
+	_, isPending, err := client.TransactionByHash(context.Background(), vLog.TxHash)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 	if isPending {
-		log.Warnf("transaction %s is pending, skipped", vLog.TxHash)
+		err = fmt.Errorf("transaction %s is pending, skipped", vLog.TxHash)
+		log.Warn(err)
 		return
 	}
-	//
-	if r := tx.To(); r != nil {
-		m.ToAddress = r.Hex()
-		m.ToName = tokenName(r.Hex())
-	}
 
-	switch m.Action {
-	case "Transfer":
-		m.FromAddress = common.BytesToAddress(vLog.Topics[1].Bytes()).Hex()
-		m.FromName = tokenName(m.FromAddress)
-		m.ToAddress = common.BytesToAddress(vLog.Topics[2].Bytes()).Hex()
-		m.ToName = tokenName(m.ToAddress)
-		var a big.Int
-		a.SetBytes(vLog.Data)
-		m.Amount = a.Uint64()
-	default:
-		// sender
-		sender, e := client.TransactionSender(context.Background(), tx, vLog.BlockHash, vLog.TxIndex)
-		if e != nil {
-			err = e
-			log.Error(err)
-			return
-		}
-		m.FromAddress = sender.Hex()
-		m.FromName = tokenName(sender.Hex())
-	}
 	// timestamp
 	block, err := client.BlockByHash(context.Background(), vLog.BlockHash)
 	if err != nil {
 		log.Error(err)
 		return
 	}
-	m.BlockTime = time.Unix(int64(block.Time()), 0)
+
+	// now parse the types
+	var rel *TrustRelationship
+	switch action {
+	case "Transfer":
+		// process entities
+		contractAddress := vLog.Address.Hex()
+		senderAddress := topic2Addr(vLog, 1)
+		recipientAddress := topic2Addr(vLog, 2)
+		// case sender is a defi-ptocol
+		c, _ := criteria(contractAddress)
+		s, sIsNew := criteria(senderAddress)
+		r, rIsNew := criteria(recipientAddress)
+
+		if s.Type == r.Type {
+			// if they are both defi-portal then skip
+			if s.Type == TypeDefiProtocol {
+				err = fmt.Errorf("skip tx %s event log:  both sender and recipient are defi-protocols", vLog.TxHash.Hex())
+				return
+			}
+			// if they are both address
+			// then create 2 relationships to the contract
+			rel = NewTrustRelationship()
+			rel.Type = "interaction"
+			rel.Properties = map[string]interface{}{
+				"txId":      vLog.TxHash.Hex(),
+				"action":    action,
+				"timestamp": time.Unix(int64(block.Time()), 0),
+			}
+			rel.SourceCriteria = s // the sender is the source
+			rel.TargetCriteria = c
+			cs.AddRel(rel)
+			// second one
+			rel := NewTrustRelationship()
+			rel.Type = "interaction"
+			rel.Properties = map[string]interface{}{
+				"txId":      vLog.TxHash.Hex(),
+				"action":    action,
+				"timestamp": time.Unix(int64(block.Time()), 0),
+			}
+			rel.SourceCriteria = r // the recipient is the source
+			rel.TargetCriteria = c
+			cs.AddRel(rel)
+		} else {
+			rel = NewTrustRelationship()
+			rel.Type = "interaction"
+			rel.Properties = map[string]interface{}{
+				"txId":      vLog.TxHash.Hex(),
+				"action":    action,
+				"timestamp": time.Unix(int64(block.Time()), 0),
+			}
+			// if the sender is type address and recipient defi-portal
+			// then best case scenario
+			if s.Type == TypeAddress {
+				rel.SourceCriteria = s // the sender is the source
+				rel.TargetCriteria = r
+				cs.AddRel(rel)
+			} else {
+				rel.SourceCriteria = r // the sender is the source
+				rel.TargetCriteria = s
+				cs.AddRel(rel)
+			}
+			// if the sender is type defi-portal and sender address
+			// then swap them around
+
+		}
+
+		// now add missing stuff
+		if sIsNew {
+			// TODO copying here is ugly
+			entity := NewTrustEntity()
+			entity.Ids = s.Ids
+			entity.Type = s.Type
+			entity.Name = senderAddress
+			entity.Image = fmt.Sprintf("https://via.placeholder.com/150/FFFF00/000000/?text=%s", senderAddress)
+			cs.AddEntity(entity)
+		}
+		if rIsNew {
+			// TODO copying here is ugly
+			entity := NewTrustEntity()
+			entity.Ids = r.Ids
+			entity.Type = r.Type
+			entity.Name = recipientAddress
+			entity.Image = fmt.Sprintf("https://via.placeholder.com/150/FFFF00/000000/?text=%s", recipientAddress)
+			cs.AddEntity(entity)
+		}
+
+	default:
+		err = fmt.Errorf("action %s not supported", action)
+	}
 	return
+}
+
+func changesetsProcessor(cfg config.TrustEngineSchema, queue <-chan *TrustAPIChangeSet) {
+	utuCli := NewUTUClient(cfg)
+	if cfg.DryRun {
+		log.Info("Utu client is in dry run mode, CHANGES WILL NOT BE SUBMITTED!")
+	}
+	// listen on the queue
+	for {
+		cs, more := <-queue
+		if !more {
+			log.Info("changeset queue is closed, exiting")
+			break
+		}
+		// if dryrun just print the outcome
+		if cfg.DryRun {
+			v, _ := json.MarshalIndent(cs, "", "  ")
+			log.Infof("%s", v)
+			continue
+		}
+
+		for _, e := range cs.Entities {
+			// cache addresses
+			for a, n := range e.Ids {
+				// push to the address cache
+				cachePush(a, n, e.Type)
+			}
+			// execute the request
+			if err := utuCli.PostEntity(e); err != nil {
+				log.Error("error posting entity:", err)
+			}
+		}
+
+		for _, r := range cs.Relationship {
+			// execute the request
+			if err := utuCli.PostRelationship(r); err != nil {
+				log.Error("error posting relationship:", err)
+			}
+		}
+	}
 }
 
 // Start the service
@@ -163,34 +210,54 @@ func Start(cfg config.Schema) (err error) {
 	if err != nil {
 		return
 	}
+	log.Debug(store)
+	// prepare the entities cache
+	var addresFilters []common.Address
+	// create the changeset queue and start the procesor
+	queue := make(chan *TrustAPIChangeSet)
+	go changesetsProcessor(cfg.UTUTrustAPI, queue)
+
 	// now get the etherescan api
 	// escli := etherscan.New(etherscan.Mainnet, cfg.EtherscanAPIToken)
-	// read the list of monitored tokens
-	var tokens []Token
-	err = getTokens(cfg.DefiSourcesFile, &tokens)
+	// read the list of monitored protocols
+	var protocols []Protocol
+	err = utils.ReadJSON(cfg.DefiSourcesFile, &protocols)
 	if err != nil {
 		return
 	}
-	// load the tokens
-	tokenUpdated := 0 // wherever the token file was updated
-	var addresses []common.Address
-	for i, t := range tokens {
-		log.Infof("registering %s with name %s", t.Address, t.Name)
-		tokens[i] = t
-		//lowercase the
-		tokenNames[strings.ToLower(t.Address)] = t
-		addresses = append(addresses, common.HexToAddress(t.Address))
-	}
-	if tokenUpdated > 0 {
-		log.Info("Token file received %d updates", tokenUpdated)
-		if err := utils.WriteJSON(cfg.DefiSourcesFile, tokens); err != nil {
-			log.Warnf("failed to update the tokens file %s: %v", cfg.DefiSourcesFile, err)
+
+	for _, p := range protocols {
+		// if there are no filters skip
+		if len(p.Filters) == 0 {
+			log.Warnf("skip protocol %s: empty filters", p.Name)
+			continue
+		}
+		// build the entity
+		e := NewTrustEntity()
+		e.Name = p.Name
+		e.Type = TypeDefiProtocol
+		e.Image = p.IconURL
+		e.Ids = p.ReverseFilters()
+		e.Properties = map[string]interface{}{
+			"url":         p.URL,
+			"description": p.Description,
+		}
+		// queue it to the processor
+		queue <- NewChangeset(e)
+		// cache addresses
+		for n, a := range e.Ids {
+			// push to the address cache
+			cachePush(a, n, TypeDefiProtocol)
+			// add to the list of filter for ethereum
+			addresFilters = append(addresFilters, common.HexToAddress(a))
+			log.Debugf("registered protocol %s filter %s at %s", p.Name, n, a)
 		}
 	}
-	log.Infof("registered %d names", len(tokenNames))
+
+	log.Infof("registered %d filters", len(addresFilters))
 	// prepare query
 	query := ethereum.FilterQuery{
-		Addresses: addresses,
+		Addresses: addresFilters,
 	}
 	// prepare the channel for subscrition
 	logs := make(chan types.Log)
@@ -212,20 +279,21 @@ func Start(cfg config.Schema) (err error) {
 		case err := <-sub.Err():
 			log.Fatal(err)
 		case vLog := <-logs:
-			m, err := ParseLog(vLog, client)
-			if err != nil {
+			// check if the log is for an address we know
+			_, _, found := cacheGet(vLog.Address.Hex())
+			if !found {
+				err = fmt.Errorf("skip unknown contract address: %s ", vLog.Address.Hex())
 				continue
 			}
-
-			// does nothing
-			store.Tx(m.FromAddress, m.ToAddress, m.BlockTime)
+			// this should return a relationship
+			changeset, err := ParseLog(&vLog, client)
+			if err != nil {
+				log.Error("error parsing log: ", err)
+				continue
+			}
+			queue <- &changeset
 			// aggregate
-			queue(*m)
-
-			// write it
-			data := LogEvent(m)
-			f.Write(data)
-			f.WriteString("\n")
+			//queue(changeset)
 		}
 	}
 }

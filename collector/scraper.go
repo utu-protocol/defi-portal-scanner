@@ -1,17 +1,25 @@
 package collector
 
 import (
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/utu-crowdsale/defi-portal-scanner/utils"
 )
 
-// Token is a source token
-type Token struct {
-	Name    string  `json:"name,omitempty"`
-	Address string  `json:"address,omitempty"`
-	IconURL string  `json:"icon,omitempty"`
-	AbiJSON string  `json:"abi,omitempty"`
-	Abi     abi.ABI `json:"-"`
+// Protocol is a source token
+type Protocol struct {
+	Name        string            `json:"name,omitempty"`
+	Description string            `json:"description,omitempty"`
+	IconURL     string            `json:"icon,omitempty"`
+	URL         string            `json:"url,omitempty"`
+	Filters     map[string]string `json:"filters,omitempty"`
+}
+
+// ReverseFilters reverse the filters key and value
+func (p Protocol) ReverseFilters() map[string]string {
+	reversed := make(map[string]string, len(p.Filters))
+	for k, v := range p.Filters {
+		reversed[v] = k
+	}
+	return reversed
 }
 
 func getTokens(path string, tokens interface{}) (err error) {

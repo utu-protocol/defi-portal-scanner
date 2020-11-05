@@ -6,6 +6,7 @@ import (
 	"github.com/xujiajun/nutsdb"
 )
 
+// Store a store for transactions
 type Store struct {
 	db *nutsdb.DB
 }
@@ -25,10 +26,12 @@ const (
 	txBucket = "txs"
 )
 
+// Tx store a transaction
 func (db *Store) Tx(from, to string, when time.Time) {
 	//TODO: nohop
 }
 
+// Close closes the store
 func (db *Store) Close() {
 	db.db.Close()
 }

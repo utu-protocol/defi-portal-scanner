@@ -22,5 +22,7 @@ func init() {
 		"0x9e71bc8eea02a63969f509818f2dafb9254532904319f9dbda79b67bd34a5f3d": "Staked",
 		"0x34fcbac0073d7c3d388e51312faf357774904998eeb8fca628b9e6f65ee1cbf7": "Claim",
 		"0x0f6798a560793a54c3bcfe86a93cde1e73087d944c0ea20544137d4121396885": "Mint",
+		"0xdec2bacdd2f05b59de34da9b523dff8be42e5e38e818c82fdb0bae774387a724": "DelegateVotesChanged", // Compound
 	}
+
 }

@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
@@ -39,16 +40,6 @@ var scanCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(scanCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// scanCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// scanCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 func scan(cmd *cobra.Command, args []string) {
@@ -84,11 +75,12 @@ func scan(cmd *cobra.Command, args []string) {
 	}
 
 	for _, vLog := range logs {
-		evt, err := collector.ParseLog(vLog, client)
+		evt, err := collector.ParseLog(&vLog, client)
 		if err != nil {
 			log.Error(err)
 			continue
 		}
-		collector.LogEvent(evt)
+		fmt.Println(evt)
+		// collector.LogEvent(&evt)
 	}
 }
