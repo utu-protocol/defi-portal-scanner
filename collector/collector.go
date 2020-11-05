@@ -11,9 +11,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/iancoleman/strcase"
 	log "github.com/sirupsen/logrus"
 	"github.com/utu-crowdsale/defi-portal-scanner/config"
 	"github.com/utu-crowdsale/defi-portal-scanner/utils"
+)
+
+// some constants
+const (
+	ZeroAddress = "0x0000000000000000000000000000000000000000"
 )
 
 func topic2Addr(l *types.Log, index int) string {
@@ -26,14 +32,14 @@ func criteria(address string) (entity *TrustEntity, isNew bool) {
 	if !found {
 		// here is a user, we store 0x123, address, address
 		typ = TypeAddress
-		label = typ
+		label = address
 		cachePush(address, label, typ)
 		isNew = true
 	}
 	// create the entity to be used as criteria
 	entity = NewTrustEntity()
 	entity.Type = typ
-	entity.Ids = map[string]string{label: address}
+	entity.Ids = map[string]string{"address": label}
 	return
 }
 
@@ -75,6 +81,13 @@ func ParseLog(vLog *types.Log, client *ethclient.Client) (cs TrustAPIChangeSet, 
 		contractAddress := vLog.Address.Hex()
 		senderAddress := topic2Addr(vLog, 1)
 		recipientAddress := topic2Addr(vLog, 2)
+
+		// skip 0x0 address
+		if senderAddress == ZeroAddress || recipientAddress == ZeroAddress {
+			err = fmt.Errorf("skip tx %s event log: zero-address detected", vLog.TxHash.Hex())
+			return
+		}
+
 		// case sender is a defi-ptocol
 		c, _ := criteria(contractAddress)
 		s, sIsNew := criteria(senderAddress)
@@ -117,19 +130,19 @@ func ParseLog(vLog *types.Log, client *ethclient.Client) (cs TrustAPIChangeSet, 
 				"action":    action,
 				"timestamp": time.Unix(int64(block.Time()), 0),
 			}
-			// if the sender is type address and recipient defi-portal
-			// then best case scenario
 			if s.Type == TypeAddress {
+				// if the sender is type address and recipient defi-portal
+				// then best case scenario
 				rel.SourceCriteria = s // the sender is the source
 				rel.TargetCriteria = r
 				cs.AddRel(rel)
 			} else {
+				// if the sender is type defi-portal and sender address
+				// then swap them around
 				rel.SourceCriteria = r // the sender is the source
 				rel.TargetCriteria = s
 				cs.AddRel(rel)
 			}
-			// if the sender is type defi-portal and sender address
-			// then swap them around
 
 		}
 
@@ -233,11 +246,13 @@ func Start(cfg config.Schema) (err error) {
 			continue
 		}
 		// build the entity
+		protocolID := strcase.ToCamel(p.Name)
+		//
 		e := NewTrustEntity()
 		e.Name = p.Name
 		e.Type = TypeDefiProtocol
 		e.Image = p.IconURL
-		e.Ids = p.ReverseFilters()
+		e.Ids = map[string]string{"address": protocolID}
 		e.Properties = map[string]interface{}{
 			"url":         p.URL,
 			"description": p.Description,
@@ -245,12 +260,12 @@ func Start(cfg config.Schema) (err error) {
 		// queue it to the processor
 		queue <- NewChangeset(e)
 		// cache addresses
-		for n, a := range e.Ids {
+		for a := range p.Filters {
 			// push to the address cache
-			cachePush(a, n, TypeDefiProtocol)
+			cachePush(a, protocolID, TypeDefiProtocol)
 			// add to the list of filter for ethereum
 			addresFilters = append(addresFilters, common.HexToAddress(a))
-			log.Debugf("registered protocol %s filter %s at %s", p.Name, n, a)
+			log.Debugf("registered protocol %s filter %s at %s", p.Name, protocolID, a)
 		}
 	}
 

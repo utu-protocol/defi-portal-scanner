@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -12,8 +13,8 @@ import (
 
 // Types definitions
 const (
-	TypeDefiProtocol = "defi-protocol"
-	TypeAddress      = "address"
+	TypeDefiProtocol = "DefiProtocol"
+	TypeAddress      = "Address"
 )
 
 // NewUTUClient create a new utu client
@@ -53,8 +54,9 @@ func (uc UTUClient) postJSON(path string, data interface{}) (err error) {
 	if err != nil {
 		return
 	}
-	if rsp.StatusCode <= http.StatusIMUsed {
-		err = fmt.Errorf("server replied with %d", rsp.StatusCode)
+	if rsp.StatusCode != http.StatusOK {
+		body, _ := ioutil.ReadAll(rsp.Body)
+		err = fmt.Errorf("server replied with %d: %s\nrequest: %s", rsp.StatusCode, body, bin)
 	}
 	return
 }
