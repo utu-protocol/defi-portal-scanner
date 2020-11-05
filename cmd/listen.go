@@ -15,6 +15,7 @@ import (
 var (
 	fromFile string
 	toFile   string
+	dryRun   bool
 )
 
 // listenCmd represents the listen command
@@ -27,6 +28,7 @@ var listenCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(listenCmd)
+	listenCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Enable dry-run for the utu api")
 }
 
 func listen(cmd *cobra.Command, args []string) {
@@ -50,6 +52,9 @@ func listen(cmd *cobra.Command, args []string) {
 		log.PanicLevel,
 		log.FatalLevel,
 		log.ErrorLevel}))
+
+	// set the dryrun option
+	settings.UTUTrustAPI.DryRun = settings.UTUTrustAPI.DryRun || dryRun
 	// start the service
 	if err := collector.Start(settings); err != nil {
 		log.Fatal(err)
