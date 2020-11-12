@@ -17,9 +17,9 @@ var (
 )
 
 func init() {
-	txBuffer = make(map[string]chan EthEvent)
-	doneBuffer = make(chan string)
-	go cleaner()
+	// txBuffer = make(map[string]chan EthEvent)
+	// doneBuffer = make(chan string)
+	// go cleaner()
 }
 
 func _name(name, address string) string {
@@ -60,7 +60,6 @@ func aggregate(events chan EthEvent) {
 }
 
 func cleaner() {
-	log.Info("Cleaner started")
 	for {
 		txh, more := <-doneBuffer
 		if !more {

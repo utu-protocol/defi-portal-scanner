@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -296,11 +295,11 @@ func Start(cfg config.Schema) (err error) {
 		log.Fatal(err)
 	}
 	// propare output
-	f, err := os.OpenFile(cfg.LogOutputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
+	// f, err := os.OpenFile(cfg.LogOutputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer f.Close()
 
 	// get them
 	for {

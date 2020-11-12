@@ -9,6 +9,7 @@ import (
 	"github.com/utu-crowdsale/defi-portal-scanner/config"
 )
 
+// Serve - serve the web interface
 func Serve(cfg config.Schema) (err error) {
 	// echo start
 	e := echo.New()
@@ -17,6 +18,12 @@ func Serve(cfg config.Schema) (err error) {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.Gzip())
+	e.GET("/", func(c echo.Context) (err error) {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"status":  "ok",
+			"version": config.Settings.RuntimeVersion,
+		})
+	})
 	// health check :)
 	e.GET("/status", func(c echo.Context) (err error) {
 		return c.JSON(http.StatusOK, map[string]interface{}{
