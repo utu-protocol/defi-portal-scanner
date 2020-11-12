@@ -2,20 +2,21 @@ package cmd
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/makasim/sentryhook"
 	log "github.com/sirupsen/logrus"
 	"github.com/utu-crowdsale/defi-portal-scanner/collector"
-	"github.com/utu-crowdsale/defi-portal-scanner/utils"
 
 	"github.com/spf13/cobra"
 )
 
 var (
-	fromFile string
-	toFile   string
-	dryRun   bool
+	dryRun              bool
+	httpEnabled         bool
+	scanEnabled         bool
+	protocolsDescriptor string
 )
 
 // listenCmd represents the listen command
@@ -29,15 +30,18 @@ var listenCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(listenCmd)
 	listenCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Enable dry-run for the utu api")
+	listenCmd.Flags().BoolVar(&httpEnabled, "http", false, "Enable http API to submit addresses")
+	listenCmd.Flags().BoolVar(&scanEnabled, "scan", false, "Enable defi protocols subscription scanning")
+	listenCmd.Flags().StringVarP(&protocolsDescriptor, "protocols", "p", "", "Override the protocols file description location")
 }
 
 func listen(cmd *cobra.Command, args []string) {
-
-	log.SetFormatter(&utils.EmojiLogFormatter{})
+	//log.SetFormatter(&utils.EmojiLogFormatter{})
 	if debug {
 		// Only log the warning severity or above.
 		log.SetLevel(log.DebugLevel)
 	}
+	log.Info("starting listener")
 	// enable sentry logging
 	err := sentry.Init(sentry.ClientOptions{
 		Dsn:         settings.Services.GlitchtipDsn,
@@ -55,8 +59,34 @@ func listen(cmd *cobra.Command, args []string) {
 
 	// set the dryrun option
 	settings.UTUTrustAPI.DryRun = settings.UTUTrustAPI.DryRun || dryRun
-	// start the service
-	if err := collector.Start(settings); err != nil {
-		log.Fatal(err)
+	if protocolsDescriptor != "" {
+		settings.DefiSourcesFile = protocolsDescriptor
 	}
+
+	collector.Ready(settings)
+	// synchronize services
+	var wg sync.WaitGroup
+	// start the service
+	if scanEnabled {
+		log.Info("scanning mode enabled")
+		wg.Add(1)
+		go func() {
+			if err := collector.Start(settings); err != nil {
+				log.Fatal(err)
+			}
+		}()
+	}
+
+	if httpEnabled {
+		log.Info("http mode enabled")
+		wg.Add(1)
+		go func() {
+			if err := collector.Serve(settings); err != nil {
+				log.Fatal(err)
+			}
+		}()
+
+	}
+	wg.Wait()
+
 }

@@ -16,6 +16,7 @@ var (
 	environment string
 	debug       bool
 	settings    config.Schema
+	welcome     string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -91,5 +92,11 @@ func initConfig() {
 	settings.RuntimeVersion = rootCmd.Version
 	settings.RuntimeEnvironment = environment
 	settings.RuntimeName = "defi-portal-scanner"
+
+	welcome = fmt.Sprintf(`    
+╔╦╗┌─┐╔═╗┬  ┌─┐┌─┐┌─┐┌┐┌┌┐┌┌─┐┬─┐
+ ║║├┤ ╠╣ │  └─┐│  ├─┤││││││├┤ ├┬┘
+═╩╝└─┘╚  ┴  └─┘└─┘┴ ┴┘└┘┘└┘└─┘┴└─ version %s`, settings.RuntimeVersion)
+	log.Info(welcome)
 	log.Debug(fmt.Sprintf("config %#v", settings))
 }
