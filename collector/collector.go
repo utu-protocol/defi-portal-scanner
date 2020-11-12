@@ -273,6 +273,7 @@ func Start(cfg config.Schema) (err error) {
 		e.Properties = map[string]interface{}{
 			"url":         p.URL,
 			"description": p.Description,
+			"category":    p.Category,
 		}
 		// queue it to the processor
 		csQueue <- NewChangeset(e)
