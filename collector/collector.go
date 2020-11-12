@@ -22,11 +22,13 @@ const (
 )
 
 var (
-	csQueue chan *TrustAPIChangeSet
+	csQueue   chan *TrustAPIChangeSet
+	addrQueue chan string
 )
 
 func init() {
 	csQueue = make(chan *TrustAPIChangeSet)
+	addrQueue = make(chan string)
 }
 
 func topic2Addr(l *types.Log, index int) string {
@@ -223,6 +225,8 @@ func changesetsProcessor(cfg config.TrustEngineSchema) {
 func Ready(cfg config.Schema) {
 	// start the processor
 	go changesetsProcessor(cfg.UTUTrustAPI)
+	go addressProcessor(cfg)
+
 }
 
 // Start the service
@@ -326,21 +330,39 @@ func Start(cfg config.Schema) (err error) {
 	}
 }
 
-// Scan scan the relationships of a new address
-func Scan(cfg config.Schema, address string) (err error) {
+func addressProcessor(cfg config.Schema) {
+	cache := make(map[string]bool)
 	// get the etherscan client
 	client := NewEtherscanClient(cfg.Ethereum.EtherscanAPIToken)
-	// now we go through all transactions an we search for:
-	processedAddress := make(map[string]string)
-	// recursion levels
-	currentLevel := 0
-	maxLevel := 1
-	scan(client, processedAddress, address, currentLevel, maxLevel)
+	for {
+		addr, more := <-addrQueue
+		log.Info("received request to scan address ", addr)
+		if !more {
+			log.Info("changeset queue is closed, exiting")
+			break
+		}
+		if _, found := cache[addr]; found {
+			log.Infof("skip address %s, already scanned", addr)
+			continue
+		}
+		cache[addr] = true
+		// recursion levels
+		currentLevel := 0
+		maxLevel := 1
+		// now we go through all transactions an we search for:
+		processedAddress := make(map[string]bool)
+		scan(client, processedAddress, addr, currentLevel, maxLevel)
+	}
+}
+
+// Scan scan the relationships of a new address
+func Scan(cfg config.Schema, address string) (err error) {
+	addrQueue <- address
 	return
 }
 
 // actually process the addresses
-func scan(client *EtherscanClient, processedAddress map[string]string, a string, level, maxLevel int) {
+func scan(client *EtherscanClient, processedAddress map[string]bool, a string, level, maxLevel int) {
 	// don't go too deep
 	if level > maxLevel {
 		return
@@ -349,6 +371,7 @@ func scan(client *EtherscanClient, processedAddress map[string]string, a string,
 	if _, doneAlready := processedAddress[a]; doneAlready {
 		return
 	}
+	processedAddress[a] = true
 	// retrieve the address transactions
 	txs, err := client.GetTransactions(a)
 	if err != nil {
