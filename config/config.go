@@ -31,6 +31,11 @@ type TrustEngineSchema struct {
 	DryRun    bool   `mapstructure:"dry_run"`
 }
 
+// ServerSchema the schema for server
+type ServerSchema struct {
+	ListenAddress string `mapstructure:"listen_address"`
+}
+
 // Schema main configuration for the news room
 type Schema struct {
 	Ethereum           EthereumSchema    `mapstructure:"eth"`
@@ -41,6 +46,7 @@ type Schema struct {
 	LogOutputFile      string            `mapstructure:"log_output_file"`
 	Services           ServicesSchema    `mapstructure:"services"`
 	Protocols          []ProtocolSchema  `mapstructure:"protocols"`
+	Server             ServerSchema      `mapstructure:"server"`
 	RuntimeVersion     string            `mapstructure:"-"`
 	RuntimeEnvironment string            `mapstructure:"-"`
 	RuntimeName        string            `mapstructure:"-"`
@@ -49,7 +55,7 @@ type Schema struct {
 // Defaults configure defaults for the configuration
 func Defaults() {
 	// scheduler defaults
-	viper.SetDefault("defi_sources_file", "sources.json")
+	viper.SetDefault("defi_sources_file", "protocols.json")
 	viper.SetDefault("log_output_file", "output.json")
 	viper.SetDefault("track_topics", []string{"transfer"})
 	viper.SetDefault("db_folder", "db")
@@ -57,6 +63,8 @@ func Defaults() {
 	viper.SetDefault("utu_trust_api.url", "https://api.ututrust.com")
 	viper.SetDefault("utu_trust_api.client_id", "defiPortal")
 	viper.SetDefault("utu_trust_api.client_id_header", "UTU-Trust-Api-Client-Id")
+	// server
+	viper.SetDefault("server.listen_address", ":2011")
 }
 
 // Validate a configuration

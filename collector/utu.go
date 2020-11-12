@@ -15,6 +15,7 @@ import (
 const (
 	TypeDefiProtocol = "DeFiProtocol"
 	TypeAddress      = "Address"
+	TypeInteraction = "interaction"
 )
 
 // NewUTUClient create a new utu client

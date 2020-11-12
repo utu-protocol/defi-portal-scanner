@@ -22,6 +22,14 @@ const (
 	ZeroAddress = "0x0000000000000000000000000000000000000000"
 )
 
+var (
+	csQueue chan *TrustAPIChangeSet
+)
+
+func init() {
+	csQueue = make(chan *TrustAPIChangeSet)
+}
+
 func topic2Addr(l *types.Log, index int) string {
 	return common.BytesToAddress(l.Topics[index].Bytes()).Hex()
 }
@@ -102,7 +110,7 @@ func ParseLog(vLog *types.Log, client *ethclient.Client) (cs TrustAPIChangeSet, 
 			// if they are both address
 			// then create 2 relationships to the contract
 			rel = NewTrustRelationship()
-			rel.Type = "interaction"
+			rel.Type = TypeInteraction
 			rel.Properties = map[string]interface{}{
 				"txId":      vLog.TxHash.Hex(),
 				"action":    action,
@@ -113,7 +121,7 @@ func ParseLog(vLog *types.Log, client *ethclient.Client) (cs TrustAPIChangeSet, 
 			cs.AddRel(rel)
 			// second one
 			rel := NewTrustRelationship()
-			rel.Type = "interaction"
+			rel.Type = TypeInteraction
 			rel.Properties = map[string]interface{}{
 				"txId":      vLog.TxHash.Hex(),
 				"action":    action,
@@ -124,7 +132,7 @@ func ParseLog(vLog *types.Log, client *ethclient.Client) (cs TrustAPIChangeSet, 
 			cs.AddRel(rel)
 		} else {
 			rel = NewTrustRelationship()
-			rel.Type = "interaction"
+			rel.Type = TypeInteraction
 			rel.Properties = map[string]interface{}{
 				"txId":      vLog.TxHash.Hex(),
 				"action":    action,
@@ -172,14 +180,14 @@ func ParseLog(vLog *types.Log, client *ethclient.Client) (cs TrustAPIChangeSet, 
 	return
 }
 
-func changesetsProcessor(cfg config.TrustEngineSchema, queue <-chan *TrustAPIChangeSet) {
+func changesetsProcessor(cfg config.TrustEngineSchema) {
 	utuCli := NewUTUClient(cfg)
 	if cfg.DryRun {
 		log.Info("Utu client is in dry run mode, CHANGES WILL NOT BE SUBMITTED!")
 	}
 	// listen on the queue
 	for {
-		cs, more := <-queue
+		cs, more := <-csQueue
 		if !more {
 			log.Info("changeset queue is closed, exiting")
 			break
@@ -212,23 +220,27 @@ func changesetsProcessor(cfg config.TrustEngineSchema, queue <-chan *TrustAPICha
 	}
 }
 
+// Ready setup the processing queue
+func Ready(cfg config.Schema) {
+	// start the processor
+	go changesetsProcessor(cfg.UTUTrustAPI)
+}
+
 // Start the service
 func Start(cfg config.Schema) (err error) {
+	log.Info("starting collector for protocols at", cfg.DefiSourcesFile)
 	client, err := ethclient.Dial(cfg.Ethereum.WssURL)
 	if err != nil {
 		return
 	}
-	// open the database
-	store, err := OpenStore(cfg.DbFolder)
-	if err != nil {
-		return
-	}
-	log.Debug(store)
+	// // open the database
+	// store, err := OpenStore(cfg.DbFolder)
+	// if err != nil {
+	// 	return
+	// }
+	// log.Debug(store)
 	// prepare the entities cache
 	var addresFilters []common.Address
-	// create the changeset queue and start the procesor
-	queue := make(chan *TrustAPIChangeSet)
-	go changesetsProcessor(cfg.UTUTrustAPI, queue)
 
 	// now get the etherescan api
 	// escli := etherscan.New(etherscan.Mainnet, cfg.EtherscanAPIToken)
@@ -236,6 +248,7 @@ func Start(cfg config.Schema) (err error) {
 	var protocols []Protocol
 	err = utils.ReadJSON(cfg.DefiSourcesFile, &protocols)
 	if err != nil {
+		log.Errorf("cannot retrieve the defi protocols from %s: %v", cfg.DefiSourcesFile, err)
 		return
 	}
 
@@ -247,6 +260,7 @@ func Start(cfg config.Schema) (err error) {
 		}
 		// build the entity
 		protocolID := strcase.ToCamel(p.Name)
+		log.Infof("protocol %s added with %d addresses", p.Name, len(p.Filters))
 		//
 		e := NewTrustEntity()
 		e.Name = p.Name
@@ -258,7 +272,7 @@ func Start(cfg config.Schema) (err error) {
 			"description": p.Description,
 		}
 		// queue it to the processor
-		queue <- NewChangeset(e)
+		csQueue <- NewChangeset(e)
 		// cache addresses
 		for a := range p.Filters {
 			// push to the address cache
@@ -303,12 +317,89 @@ func Start(cfg config.Schema) (err error) {
 			// this should return a relationship
 			changeset, err := ParseLog(&vLog, client)
 			if err != nil {
-				log.Error("error parsing log: ", err)
+				log.Warn("error parsing log: ", err)
 				continue
 			}
-			queue <- &changeset
+			csQueue <- &changeset
 			// aggregate
 			//queue(changeset)
 		}
+	}
+}
+
+// Scan scan the relationships of a new address
+func Scan(cfg config.Schema, address string) (err error) {
+	// get the etherscan client
+	client := NewEtherscanClient(cfg.Ethereum.EtherscanAPIToken)
+	// now we go through all transactions an we search for:
+	processedAddress := make(map[string]string)
+	// recursion levels
+	currentLevel := 0
+	maxLevel := 1
+	scan(client, processedAddress, address, currentLevel, maxLevel)
+	return
+}
+
+// actually process the addresses
+func scan(client *EtherscanClient, processedAddress map[string]string, a string, level, maxLevel int) {
+	// don't go too deep
+	if level > maxLevel {
+		return
+	}
+	// if already visited don't do it again
+	if _, doneAlready := processedAddress[a]; doneAlready {
+		return
+	}
+	// retrieve the address transactions
+	txs, err := client.GetTransactions(a)
+	if err != nil {
+		log.Error("error retrieving transactions: ", err)
+		return
+	}
+	// create the source criteria
+	sc, isNew := criteria(a)
+	// it's a contract
+	if sc.Type == TypeDefiProtocol {
+		return
+	}
+	// create the changeset queue and start the processor
+	if isNew {
+		sc.Name = a
+		csQueue <- NewChangeset(sc)
+	}
+	// process the relationships
+	var src, dst string
+	var cs *TrustAPIChangeSet
+	for _, y := range txs {
+		src, dst = y.From, y.To
+		// if source is eq destination skip it
+		if src == dst {
+			continue
+		}
+		// the subject address is always the sender
+		if src != a {
+			src, dst = y.To, y.From
+		}
+		dc, isNew := criteria(dst)
+		cs = NewChangeset()
+		if isNew {
+			dc.Name = dst
+			cs.AddEntity(dc)
+		}
+		//
+		rel := NewTrustRelationship()
+		rel.Type = TypeInteraction
+		rel.Properties = map[string]interface{}{
+			"txId":      y.Hash,
+			"action":    "interaction",
+			"timestamp": y.GetTime(),
+		}
+		rel.SourceCriteria = sc // the sender is the source
+		rel.TargetCriteria = dc
+		cs.AddRel(rel)
+		// add to the processed list
+		csQueue <- cs
+		// recursively call on the destination
+		scan(client, processedAddress, dst, level+1, maxLevel)
 	}
 }

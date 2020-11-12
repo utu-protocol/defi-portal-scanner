@@ -6,6 +6,7 @@ require (
 	github.com/ethereum/go-ethereum v1.9.22
 	github.com/getsentry/sentry-go v0.7.0
 	github.com/iancoleman/strcase v0.1.2
+	github.com/labstack/echo v3.3.10+incompatible
 	github.com/machinebox/graphql v0.2.2
 	github.com/makasim/sentryhook v0.3.0
 	github.com/matryer/is v1.4.0 // indirect
