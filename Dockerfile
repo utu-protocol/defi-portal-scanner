@@ -13,7 +13,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /defi-portal-scanner -ldfl
 ############################
 # STEP 2 build a small image
 ############################
-FROM scratch
+FROM golang:alpine
 # Copy our static executable + data
 COPY --from=builder /defi-portal-scanner /
 # Copy config file 
