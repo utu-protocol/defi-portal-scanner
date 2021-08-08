@@ -20,21 +20,21 @@ const PURGATORY_ASSETS = "https://github.com/oceanprotocol/list-purgatory/blob/m
 const PURGATORY_ACCOUNTS = "https://github.com/oceanprotocol/list-purgatory/blob/main/list-assets.json"
 
 // graphQuery gets most blockchain data from Ocean's GraphQL instance.
-func graphQuery(query string) (respData map[string]interface{}, err error) {
+func graphQuery(query string, respContainer interface{}) (err error) {
 	// create a client (safe to share across requests)
 	client := graphql.NewClient(OCEAN_SUBGRAPH_MAINNET)
-
+	client.Log = func(s string) { log.Println(s) }
 	req := graphql.NewRequest(query)
 
 	// define a Context for the request
 	ctx := context.Background()
 
 	// run it and capture the response
-	if err = client.Run(ctx, req, &respData); err != nil {
+	if err = client.Run(ctx, req, respContainer); err != nil {
 		log.Fatal(err)
 		return
 	}
-	return respData, nil
+	return nil
 }
 
 // aquariusQuery gets additional data like purgatory status and a dataset

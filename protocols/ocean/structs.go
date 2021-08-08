@@ -5,6 +5,7 @@ type Asset struct {
 	Datatoken   *Datatoken `json:"datatoken"`
 	PublishedBy string     `json:"published_by"` // this is obtained from pool.controller
 	Purgatory   bool       `json:"purgatory"`
+	Consumed    uint       `json:"consumed"` // Times this data asset was consumed
 }
 
 type Pool struct {
