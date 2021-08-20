@@ -3,6 +3,8 @@ package ocean
 import (
 	"log"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // func TestPools(t *testing.T) {
@@ -26,5 +28,6 @@ import (
 
 func TestPipeline(t *testing.T) {
 	logger := log.Default()
-	pipeline(logger)
+	err := pipeline(logger)
+	assert.Nil(t, err)
 }

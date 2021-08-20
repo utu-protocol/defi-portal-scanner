@@ -23,7 +23,7 @@ const PURGATORY_ACCOUNTS = "https://github.com/oceanprotocol/list-purgatory/blob
 func graphQuery(query string, respContainer interface{}) (err error) {
 	// create a client (safe to share across requests)
 	client := graphql.NewClient(OCEAN_SUBGRAPH_MAINNET)
-	client.Log = func(s string) { log.Println(s) }
+	// client.Log = func(s string) { log.Println(s) }
 	req := graphql.NewRequest(query)
 
 	// define a Context for the request
@@ -42,14 +42,16 @@ func graphQuery(query string, respContainer interface{}) (err error) {
 // Ethereum address, which will be stripped of its 0x prefix to produce the DID.
 func aquariusQuery(datatokenAddress string) (ddo *DecentralizedDataObject, err error) {
 	did := strings.TrimLeft(datatokenAddress, "0x")
-	resp, err := http.Get(fmt.Sprintf("%s%s", AQUARIUS_URL_DDO, did))
+	resp, err := http.Get(fmt.Sprintf("%sdid:op:%s", AQUARIUS_URL_DDO, did)) // https://multiaqua.oceanprotocol.com/api/v1/aquarius/assets/ddo/did:op:0f5A4C51Dd71C7FB8D5D61e5B56C996681e4302F
 	if err != nil {
 		return
 	}
-
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return
+	}
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("Ocean Aquarius did not return a OK to our request for did %s. Status Code: %s, Body: %s", did, resp.Status, body)
 	}
 
 	ddo = new(DecentralizedDataObject)

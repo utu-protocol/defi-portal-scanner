@@ -14,9 +14,9 @@ type DecentralizedDataObject struct {
 		Type      string `json:"type"`
 		PublicKey string `json:"publicKey"`
 	} `json:"authentication"`
-	Service   map[string]interface{} `json:"service"`
-	DataToken string                 `json:"dataToken"`
-	Created   time.Time              `json:"created"`
+	Service   []map[string]interface{} `json:"service"`
+	DataToken string                   `json:"dataToken"`
+	Created   time.Time                `json:"created"`
 	Proof     struct {
 		Created        time.Time `json:"created"`
 		Creator        string    `json:"creator"`

@@ -3,7 +3,7 @@ module github.com/utu-crowdsale/defi-portal-scanner
 go 1.15
 
 require (
-	github.com/ethereum/go-ethereum v1.9.22
+	github.com/ethereum/go-ethereum v1.10.7
 	github.com/getsentry/sentry-go v0.7.0
 	github.com/iancoleman/strcase v0.1.2
 	github.com/labstack/echo v3.3.10+incompatible
@@ -13,5 +13,6 @@ require (
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/viper v1.7.1
+	github.com/stretchr/testify v1.7.0
 	github.com/xujiajun/nutsdb v0.5.0
 )

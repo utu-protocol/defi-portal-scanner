@@ -1,6 +1,8 @@
 package ocean
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"strconv"
 )
@@ -66,23 +68,22 @@ func pipeline(log *log.Logger) (err error) {
 			}
 			]
 	*/
-	dt := make([]Datatoken, len(resp.Datatokens))
+	datatokens := make([]*Datatoken, len(resp.Datatokens))
 	for k, v := range resp.Datatokens {
 		orderCount, err := strconv.ParseUint(v.OrderCount, 10, 64)
 		if err != nil {
 			return err
 		}
-		dt[k] = Datatoken{
-			Address:    v.Address,
-			Name:       v.Name,
-			Symbol:     v.Symbol,
-			OrderCount: uint(orderCount),
+		dt, err := NewDataToken(v.Address, v.Name, v.Symbol, uint64(orderCount))
+		if err != nil {
+			return err
 		}
+		datatokens[k] = dt
 	}
 
-	// fmt.Printf("%+v\n", dt)
-
-	// Now pull up info on all Pools
+	// Now pull up info on all Pools. Since we receive Pools as a list, which is
+	// not so easy to search through, we transform it into a map of
+	// datatokenAddress -> PoolGraphQLResponse
 	query = `{pools (where: {datatokenAddress_not: ""}, orderBy: oceanReserve, orderDirection:desc ) {
 		id
 		controller
@@ -92,14 +93,7 @@ func pipeline(log *log.Logger) (err error) {
 		oceanReserve
 	}}`
 	type poolResponse struct {
-		Pools []struct {
-			Controller       string
-			DatatokenAddress string
-			DatatokenReserve string
-			ID               string
-			OceanReserve     string
-			TotalSwapVolume  string
-		}
+		Pools []PoolGraphQLResponse
 	}
 	respPool := new(poolResponse)
 	err = graphQuery(query, respPool)
@@ -107,6 +101,56 @@ func pipeline(log *log.Logger) (err error) {
 		log.Println("Error while querying GraphQL for pools", err)
 		return
 	}
+	pm := make(map[string]*Pool)
+	for _, pGrQlResp := range respPool.Pools {
+		pool, err := pGrQlResp.toPool()
+		if err != nil {
+			log.Println("Error while transforming PoolGraphQLResponse to Pool struct", err)
+			return err
+		}
 
+		pm[checksumAddress(pGrQlResp.DatatokenAddress)] = pool
+	}
+
+	// We have Pools and Datatokens, so we can now construct Assets. A Datatoken
+	// may not have a Pool, or even a DDO associated with it. But we're only
+	// interested in Datatokens with Pools and DDOs.
+	var assets []*Asset
+	for _, dt := range datatokens {
+		// If Datatoken does not have corresponding Pool, immediately skip it (don't bother Aquarius)
+		pool := pm[dt.Address]
+		if pool == nil {
+			log.Printf("%s does not have a corresponding Pool, skipping", dt.Address)
+			continue
+		}
+
+		// In practice, Aquarius only knows about Datatokens which have Pools.
+		var purgatoryStatus bool
+		ddo, err := aquariusQuery(dt.Address)
+		if err != nil {
+			log.Printf("%s is not known by Aquarius, skipping: %s", dt.Address, err)
+			continue
+		}
+
+		purgatoryStatus, err = strconv.ParseBool(ddo.IsInPurgatory)
+		if err != nil {
+			return err
+		}
+		asset := &Asset{
+			Pool:        pool,
+			Datatoken:   dt,
+			PublishedBy: pool.Controller,
+			Purgatory:   purgatoryStatus,
+			Consumed:    dt.OrderCount,
+		}
+		assets = append(assets, asset)
+	}
+
+	fmt.Println("len(assets)", len(assets))
+	j, err := json.MarshalIndent(assets, "", "\t")
+	if err != nil {
+		return
+	}
+	fmt.Println(string(j))
 	return
 }
