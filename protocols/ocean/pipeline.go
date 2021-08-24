@@ -11,7 +11,7 @@ import (
 // and builds up an internal state.
 func pipeline(log *log.Logger) (err error) {
 	// Get basic data about Datatokens, and how many times they were consumed.
-	query := `{datatokens {
+	baseDatatokensQuery := `{datatokens(orderBy:name,first:1000%v) {
 		symbol
 		name
 		address
@@ -35,56 +35,70 @@ func pipeline(log *log.Logger) (err error) {
 			Symbol string
 		}
 	}
-	resp := new(datatokenResponse)
-	err = graphQuery(query, resp)
-	if err != nil {
-		log.Println("Error while querying GraphQL for datatokens", err)
-		return
-	}
-	/*
-		"datatokens": [
-			{
-				"address": "0x028e0b27a39ff92fd30b4b8c310ea745f309ccf3",
-				"name": "Brave Nautilus Token",
-				"orderCount": "3",
-				"orders": [
-					{
-					"consumer": {
-						"id": "0x1bb7951ba30eda67bf3e5d851fe5e0e6a01a14b5"
-					}
-					},
-					{
-					"consumer": {
-						"id": "0x4ba10551d7b76b30369e9ef8d27966e19dcc786b"
-					}
-					},
-					{
-					"consumer": {
-						"id": "0xb40156f51103ebaa842590ce51dd2cd0a9e83cda"
-					}
-					}
-				],
-				"symbol": "BRANAU-77"
+	var datatokens []*Datatoken
+	i := 0
+	for {
+		var query string
+		resp := new(datatokenResponse)
+		if i == 0 {
+			query = fmt.Sprintf(baseDatatokensQuery, "")
+		} else {
+			s := fmt.Sprintf(",skip:%v", i)
+			query = fmt.Sprintf(baseDatatokensQuery, s)
+		}
+		err = graphQuery(query, resp)
+		if err != nil {
+			log.Println("Error while querying GraphQL for datatokens", err)
+			return
+		}
+		if len(resp.Datatokens) == 0 {
+			break
+		}
+		/*
+			"datatokens": [
+				{
+					"address": "0x028e0b27a39ff92fd30b4b8c310ea745f309ccf3",
+					"name": "Brave Nautilus Token",
+					"orderCount": "3",
+					"orders": [
+						{
+						"consumer": {
+							"id": "0x1bb7951ba30eda67bf3e5d851fe5e0e6a01a14b5"
+						}
+						},
+						{
+						"consumer": {
+							"id": "0x4ba10551d7b76b30369e9ef8d27966e19dcc786b"
+						}
+						},
+						{
+						"consumer": {
+							"id": "0xb40156f51103ebaa842590ce51dd2cd0a9e83cda"
+						}
+						}
+					],
+					"symbol": "BRANAU-77"
+				}
+				]
+		*/
+		for _, v := range resp.Datatokens {
+			orderCount, err := strconv.ParseUint(v.OrderCount, 10, 64)
+			if err != nil {
+				return err
 			}
-			]
-	*/
-	datatokens := make([]*Datatoken, len(resp.Datatokens))
-	for k, v := range resp.Datatokens {
-		orderCount, err := strconv.ParseUint(v.OrderCount, 10, 64)
-		if err != nil {
-			return err
+			dt, err := NewDataToken(v.Address, v.Name, v.Symbol, uint64(orderCount))
+			if err != nil {
+				return err
+			}
+			datatokens = append(datatokens, dt)
 		}
-		dt, err := NewDataToken(v.Address, v.Name, v.Symbol, uint64(orderCount))
-		if err != nil {
-			return err
-		}
-		datatokens[k] = dt
+		i += 1000
 	}
 
 	// Now pull up info on all Pools. Since we receive Pools as a list, which is
 	// not so easy to search through, we transform it into a map of
 	// datatokenAddress -> PoolGraphQLResponse
-	query = `{pools (where: {datatokenAddress_not: ""}, orderBy: oceanReserve, orderDirection:desc ) {
+	basePoolsQuery := `{pools (where: {datatokenAddress_not: ""}, orderBy: oceanReserve, orderDirection:desc ) {
 		id
 		controller
 		totalSwapVolume
@@ -96,7 +110,7 @@ func pipeline(log *log.Logger) (err error) {
 		Pools []PoolGraphQLResponse
 	}
 	respPool := new(poolResponse)
-	err = graphQuery(query, respPool)
+	err = graphQuery(basePoolsQuery, respPool)
 	if err != nil {
 		log.Println("Error while querying GraphQL for pools", err)
 		return
