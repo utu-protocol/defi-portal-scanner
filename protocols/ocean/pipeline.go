@@ -5,13 +5,42 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+
+	"github.com/barkimedes/go-deepcopy"
 )
+
+func paginatedGraphQuery(baseQuery string, respContainer pageEmptiable) (pages []interface{}, err error) {
+	i := 0
+	for {
+		var query string
+		if i == 0 {
+			query = fmt.Sprintf(baseQuery, ",first:1000")
+		} else {
+			s := fmt.Sprintf(",first:1000,skip:%d", i)
+			query = fmt.Sprintf(baseQuery, s)
+		}
+
+		err = graphQuery(query, respContainer)
+		if err != nil {
+			log.Println("Error while querying GraphQL for datatokens", err)
+			return
+		}
+		if respContainer.IsEmpty() {
+			break
+		}
+
+		page := deepcopy.MustAnything(respContainer)
+		pages = append(pages, page)
+		i += 1000
+	}
+	return
+}
 
 // pipeline makes queries to Aquarius, the github repos for things in purgatory,
 // and builds up an internal state.
 func pipeline(log *log.Logger) (err error) {
 	// Get basic data about Datatokens, and how many times they were consumed.
-	baseDatatokensQuery := `{datatokens(orderBy:name,first:1000%v) {
+	baseDatatokensQuery := `{datatokens(orderBy:name%s) {
 		symbol
 		name
 		address
@@ -22,83 +51,59 @@ func pipeline(log *log.Logger) (err error) {
 		}
 		orderCount
 	  }}`
-	type datatokenResponse struct {
-		Datatokens []struct {
-			Address    string
-			Name       string
-			OrderCount string
-			Orders     []struct {
-				Consumer struct {
-					ID string
-				}
-			}
-			Symbol string
-		}
+
+	pages, err := paginatedGraphQuery(baseDatatokensQuery, new(DatatokenResponsePage))
+	if err != nil {
+		log.Println("Error connecting to GraphQL", err)
+		return err
 	}
+	/*
+		"datatokens": [
+			{
+				"address": "0x028e0b27a39ff92fd30b4b8c310ea745f309ccf3",
+				"name": "Brave Nautilus Token",
+				"orderCount": "3",
+				"orders": [
+					{
+					"consumer": {
+						"id": "0x1bb7951ba30eda67bf3e5d851fe5e0e6a01a14b5"
+					}
+					},
+					{
+					"consumer": {
+						"id": "0x4ba10551d7b76b30369e9ef8d27966e19dcc786b"
+					}
+					},
+					{
+					"consumer": {
+						"id": "0xb40156f51103ebaa842590ce51dd2cd0a9e83cda"
+					}
+					}
+				],
+				"symbol": "BRANAU-77"
+			}
+			]
+	*/
+	var dtr []DatatokenResponse
+	for _, p := range pages {
+		page := p.(*DatatokenResponsePage)
+		dtr = append(dtr, page.Flatten()...)
+	}
+
 	var datatokens []*Datatoken
-	i := 0
-	for {
-		var query string
-		resp := new(datatokenResponse)
-		if i == 0 {
-			query = fmt.Sprintf(baseDatatokensQuery, "")
-		} else {
-			s := fmt.Sprintf(",skip:%v", i)
-			query = fmt.Sprintf(baseDatatokensQuery, s)
-		}
-		err = graphQuery(query, resp)
+	for _, datatokenResponse := range dtr {
+		dt, err := NewDataTokenFromDatatokenResponse(datatokenResponse)
 		if err != nil {
-			log.Println("Error while querying GraphQL for datatokens", err)
-			return
+			log.Println("Could not create a DataToken internal class from a datatokenResponse", err)
+			return err
 		}
-		if len(resp.Datatokens) == 0 {
-			break
-		}
-		/*
-			"datatokens": [
-				{
-					"address": "0x028e0b27a39ff92fd30b4b8c310ea745f309ccf3",
-					"name": "Brave Nautilus Token",
-					"orderCount": "3",
-					"orders": [
-						{
-						"consumer": {
-							"id": "0x1bb7951ba30eda67bf3e5d851fe5e0e6a01a14b5"
-						}
-						},
-						{
-						"consumer": {
-							"id": "0x4ba10551d7b76b30369e9ef8d27966e19dcc786b"
-						}
-						},
-						{
-						"consumer": {
-							"id": "0xb40156f51103ebaa842590ce51dd2cd0a9e83cda"
-						}
-						}
-					],
-					"symbol": "BRANAU-77"
-				}
-				]
-		*/
-		for _, v := range resp.Datatokens {
-			orderCount, err := strconv.ParseUint(v.OrderCount, 10, 64)
-			if err != nil {
-				return err
-			}
-			dt, err := NewDataToken(v.Address, v.Name, v.Symbol, uint64(orderCount))
-			if err != nil {
-				return err
-			}
-			datatokens = append(datatokens, dt)
-		}
-		i += 1000
+		datatokens = append(datatokens, dt)
 	}
 
 	// Now pull up info on all Pools. Since we receive Pools as a list, which is
 	// not so easy to search through, we transform it into a map of
 	// datatokenAddress -> PoolGraphQLResponse
-	basePoolsQuery := `{pools (where: {datatokenAddress_not: ""}, orderBy: oceanReserve, orderDirection:desc ) {
+	basePoolsQuery := `{pools (where: {datatokenAddress_not: ""}, orderBy: oceanReserve, orderDirection:desc%s ) {
 		id
 		controller
 		totalSwapVolume
@@ -106,17 +111,20 @@ func pipeline(log *log.Logger) (err error) {
 		datatokenReserve
 		oceanReserve
 	}}`
-	type poolResponse struct {
-		Pools []PoolGraphQLResponse
-	}
-	respPool := new(poolResponse)
-	err = graphQuery(basePoolsQuery, respPool)
+
+	respPool := new(PoolResponsePage)
+	pages, err = paginatedGraphQuery(basePoolsQuery, respPool)
 	if err != nil {
 		log.Println("Error while querying GraphQL for pools", err)
 		return
 	}
+	var pr []PoolGraphQLResponse
+	for _, p := range pages {
+		page := p.(*PoolResponsePage)
+		pr = append(pr, page.Flatten()...)
+	}
 	pm := make(map[string]*Pool)
-	for _, pGrQlResp := range respPool.Pools {
+	for _, pGrQlResp := range pr {
 		pool, err := pGrQlResp.toPool()
 		if err != nil {
 			log.Println("Error while transforming PoolGraphQLResponse to Pool struct", err)
@@ -160,11 +168,39 @@ func pipeline(log *log.Logger) (err error) {
 		assets = append(assets, asset)
 	}
 
-	fmt.Println("len(assets)", len(assets))
 	j, err := json.MarshalIndent(assets, "", "\t")
 	if err != nil {
 		return
 	}
 	fmt.Println(string(j))
+	fmt.Println("len(assets)", len(assets))
 	return
+}
+
+type pageEmptiable interface {
+	IsEmpty() bool
+}
+
+type DatatokenResponsePage struct {
+	Datatokens []DatatokenResponse
+}
+
+func (dt *DatatokenResponsePage) IsEmpty() bool {
+	return len(dt.Datatokens) == 0
+}
+
+func (dt *DatatokenResponsePage) Flatten() []DatatokenResponse {
+	return dt.Datatokens
+}
+
+type PoolResponsePage struct {
+	Pools []PoolGraphQLResponse
+}
+
+func (pr *PoolResponsePage) IsEmpty() bool {
+	return len(pr.Pools) == 0
+}
+
+func (pr *PoolResponsePage) Flatten() []PoolGraphQLResponse {
+	return pr.Pools
 }

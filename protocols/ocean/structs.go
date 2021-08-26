@@ -19,7 +19,17 @@ type Pool struct {
 	OceanReserve     float64 `json:"ocean_reserve"`
 	DatatokenReserve float64 `json:"datatoken_reserve"`
 }
-
+type DatatokenResponse struct {
+	Address    string
+	Name       string
+	OrderCount string
+	Orders     []struct {
+		Consumer struct {
+			ID string
+		}
+	}
+	Symbol string
+}
 type PoolGraphQLResponse struct {
 	Controller       string
 	DatatokenAddress string
@@ -67,11 +77,19 @@ type Datatoken struct {
 	OrderCount uint64 `json:"order_count"` // 1 TokenOrder is one consumption of the asset
 }
 
-func NewDataToken(address, name, symbol string, orderCount uint64) (dt *Datatoken, err error) {
+func NewDataToken(address, name, symbol string, orderCount uint64) (dt *Datatoken) {
 	return &Datatoken{
 		Address:    checksumAddress(address),
 		Name:       name,
 		Symbol:     symbol,
 		OrderCount: orderCount,
-	}, nil
+	}
+}
+
+func NewDataTokenFromDatatokenResponse(dtr DatatokenResponse) (dt *Datatoken, err error) {
+	orderCount, err := strconv.ParseUint(dtr.OrderCount, 10, 64)
+	if err != nil {
+		return
+	}
+	return NewDataToken(dtr.Address, dtr.Name, dtr.Symbol, uint64(orderCount)), nil
 }

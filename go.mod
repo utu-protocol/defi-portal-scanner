@@ -3,6 +3,7 @@ module github.com/utu-crowdsale/defi-portal-scanner
 go 1.15
 
 require (
+	github.com/barkimedes/go-deepcopy v0.0.0-20200817023428-a044a1957ca4 // indirect
 	github.com/ethereum/go-ethereum v1.10.7
 	github.com/getsentry/sentry-go v0.7.0
 	github.com/iancoleman/strcase v0.1.2
