@@ -15,7 +15,7 @@ import (
 const (
 	TypeDefiProtocol = "DeFiProtocol"
 	TypeAddress      = "Address"
-	TypeInteraction = "interaction"
+	TypeInteraction  = "interaction"
 )
 
 // NewUTUClient create a new utu client
@@ -49,7 +49,7 @@ func (uc UTUClient) postJSON(path string, data interface{}) (err error) {
 	}
 	// set the request header
 	req.Header.Set("Content-type", "application/json")
-	req.Header[uc.Settings.AuthHeder] = []string{uc.Settings.ClientID}
+	req.Header["Authorization"] = []string{uc.Settings.Authorization}
 	// execute the request
 	rsp, err := uc.HTTPCli.Do(req)
 	if err != nil {

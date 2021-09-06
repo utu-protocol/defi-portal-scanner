@@ -28,6 +28,7 @@ import (
 
 func TestPipeline(t *testing.T) {
 	logger := log.Default()
-	err := pipeline(logger)
+	_, err := pipeline(logger)
 	assert.Nil(t, err)
+
 }

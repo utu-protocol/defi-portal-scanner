@@ -38,7 +38,7 @@ func paginatedGraphQuery(baseQuery string, respContainer pageEmptiable) (pages [
 
 // pipeline makes queries to Aquarius, the github repos for things in purgatory,
 // and builds up an internal state.
-func pipeline(log *log.Logger) (err error) {
+func pipeline(log *log.Logger) (assets []*Asset, err error) {
 	// Get basic data about Datatokens, and how many times they were consumed.
 	baseDatatokensQuery := `{datatokens(orderBy:name%s) {
 		symbol
@@ -55,7 +55,7 @@ func pipeline(log *log.Logger) (err error) {
 	pages, err := paginatedGraphQuery(baseDatatokensQuery, new(DatatokenResponsePage))
 	if err != nil {
 		log.Println("Error connecting to GraphQL", err)
-		return err
+		return nil, err
 	}
 	/*
 		"datatokens": [
@@ -95,7 +95,7 @@ func pipeline(log *log.Logger) (err error) {
 		dt, err := NewDataTokenFromDatatokenResponse(datatokenResponse)
 		if err != nil {
 			log.Println("Could not create a DataToken internal class from a datatokenResponse", err)
-			return err
+			return nil, err
 		}
 		datatokens = append(datatokens, dt)
 	}
@@ -128,7 +128,7 @@ func pipeline(log *log.Logger) (err error) {
 		pool, err := pGrQlResp.toPool()
 		if err != nil {
 			log.Println("Error while transforming PoolGraphQLResponse to Pool struct", err)
-			return err
+			return nil, err
 		}
 
 		pm[checksumAddress(pGrQlResp.DatatokenAddress)] = pool
@@ -137,7 +137,6 @@ func pipeline(log *log.Logger) (err error) {
 	// We have Pools and Datatokens, so we can now construct Assets. A Datatoken
 	// may not have a Pool, or even a DDO associated with it. But we're only
 	// interested in Datatokens with Pools and DDOs.
-	var assets []*Asset
 	for _, dt := range datatokens {
 		// If Datatoken does not have corresponding Pool, immediately skip it (don't bother Aquarius)
 		pool := pm[dt.Address]
@@ -156,7 +155,7 @@ func pipeline(log *log.Logger) (err error) {
 
 		purgatoryStatus, err = strconv.ParseBool(ddo.IsInPurgatory)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		asset := &Asset{
 			Pool:        pool,
@@ -174,7 +173,7 @@ func pipeline(log *log.Logger) (err error) {
 	}
 	fmt.Println(string(j))
 	fmt.Println("len(assets)", len(assets))
-	return
+	return assets, nil
 }
 
 type pageEmptiable interface {
