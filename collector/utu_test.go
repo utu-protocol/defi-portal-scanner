@@ -16,9 +16,9 @@ func TestUTUClient(t *testing.T) {
 		DryRun:        false,
 	}
 	utu := NewUTUClient(*s)
-	testEntity := NewTrustEntity()
-	testEntity.Type = "someEntity"
-	testEntity.Ids = map[string]string{"key": "value"}
+	testEntity := NewTrustEntity("Pool 1")
+	testEntity.Type = "pool"
+	testEntity.Ids = map[string]string{"address": "0xdeadbeef"}
 	err := utu.PostEntity(testEntity)
 	assert.Nil(t, err)
 }

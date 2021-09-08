@@ -106,8 +106,9 @@ type TrustEntity struct {
 }
 
 // NewTrustEntity make a new entity
-func NewTrustEntity() *TrustEntity {
+func NewTrustEntity(name string) *TrustEntity {
 	return &TrustEntity{
+		Name:       name,
 		Ids:        make(map[string]string),
 		Properties: make(map[string]interface{}),
 	}
