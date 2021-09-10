@@ -6,14 +6,15 @@ APP=defi-portal-scanner
 OUTPUTFOLDER = dist
 RELEASEFOLDER = release
 # docker image
-DOCKER_REGISTRY = noandrea
+DOCKER_PROVIDER = 002208042662.dkr.ecr.eu-central-1.amazonaws.com
+DOCKER_REGISTRY = $(DOCKER_PROVIDER)
 DOCKER_IMAGE = defi-portal-scanner
 DOCKER_TAG = $(GIT_DESCR)
 # build paramters
 OS = linux
 ARCH = amd64
 # K8S
-K8S_NAMESPACE = geo
+K8S_NAMESPACE = defi-portal
 K8S_DEPLOYMENT = defi-portal-scanner
 
 .PHONY: list
@@ -68,21 +69,27 @@ docker-build:
 	docker build --build-arg DOCKER_TAG='$(GIT_DESCR)' -t $(DOCKER_IMAGE)  .
 	@echo done
 
-docker-push:
+docker-login:
+	# docker login $(DOCKER_PROVIDER)
+	aws --profile utu.live ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin $(DOCKER_REGISTRY)
+
+docker-push: docker-login
 	@echo push image
 	docker tag $(DOCKER_IMAGE):latest $(DOCKER_REGISTRY)/$(DOCKER_IMAGE):$(DOCKER_TAG)
 	docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE):$(DOCKER_TAG)
+	docker tag $(DOCKER_IMAGE):latest $(DOCKER_REGISTRY)/$(DOCKER_IMAGE):latest
+	docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE):latest
 	@echo done
 
 docker-run: 
-	docker run -p 2004:2004 $(DOCKER_IMAGE):latest
+	docker run -p 2011:2011 $(DOCKER_IMAGE):latest
 
 debug-start:
 	@go run main.go start
 
 k8s-deploy:
 	@echo deploy k8s
-	kubectl -n $(K8S_NAMESPACE) set image deployment/$(K8S_DEPLOYMENT) $(DOCKER_IMAGE)=$(DOCKER_REGISTRY)/$(DOCKER_IMAGE):$(DOCKER_TAG)
+	kubectl -n $(K8S_NAMESPACE) set image deployment/$(K8S_DEPLOYMENT) $(K8S_DEPLOYMENT)=$(DOCKER_REGISTRY)/$(DOCKER_IMAGE):$(DOCKER_TAG)
 	@echo done
 
 k8s-rollback:
@@ -122,3 +129,19 @@ gh-publish-release: clean build
 	sha256sum $(RELEASEFOLDER)/$(APP)-$(GIT_DESCR).zip | tee $(RELEASEFOLDER)/$(APP)-$(GIT_DESCR).zip.checksum
 	gh release create $(GIT_DESCR) $(RELEASEFOLDER)/* -t v$(GIT_DESCR) -F CHANGELOG.md
 	@echo done
+
+
+################# CUSTOM
+# adduser utu --shell=/bin/false --system --no-create-home --group 
+
+SSH_HOST = utu.$(APP)
+SSH_BIN_FOLDER = /data/$(APP)/bin
+
+deploy-ssh: clean build
+	rsync --progress --checksum --archive --human-readable --verbose $(OUTPUTFOLDER)/ $(SSH_HOST):$(SSH_BIN_FOLDER)/
+
+deploy-ssh-restart:
+	@echo stopping $(APP) on $(SSH_HOST)
+	ssh -t $(SSH_HOST) "systemctl start $(APP)"
+	@echo deploy complete
+

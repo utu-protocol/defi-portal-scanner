@@ -16,6 +16,7 @@ var (
 	environment string
 	debug       bool
 	settings    config.Schema
+	welcome     string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -42,7 +43,7 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is /etc/defi-portal-scanner/config.yaml)")
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/defi-portal-scanner/config.yaml)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
@@ -66,12 +67,6 @@ func initConfig() {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Find home directory.
-		// home, err := homedir.Dir()
-		// if err != nil {
-		// 	fmt.Println(err)
-		// 	os.Exit(1)
-		// }
 		// Search config in home directory with name ".thenewsroom" (without extension).
 		viper.AddConfigPath("/etc/defi-portal-scanner")
 		viper.SetConfigName("config")
@@ -97,5 +92,11 @@ func initConfig() {
 	settings.RuntimeVersion = rootCmd.Version
 	settings.RuntimeEnvironment = environment
 	settings.RuntimeName = "defi-portal-scanner"
+
+	welcome = fmt.Sprintf(`    
+╔╦╗┌─┐╔═╗┬  ┌─┐┌─┐┌─┐┌┐┌┌┐┌┌─┐┬─┐
+ ║║├┤ ╠╣ │  └─┐│  ├─┤││││││├┤ ├┬┘
+═╩╝└─┘╚  ┴  └─┘└─┘┴ ┴┘└┘┘└┘└─┘┴└─ version %s`, settings.RuntimeVersion)
+	log.Info(welcome)
 	log.Debug(fmt.Sprintf("config %#v", settings))
 }

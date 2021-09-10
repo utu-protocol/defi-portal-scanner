@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: defi-portal-scanner
+spec:
+  selector:
+    matchLabels:
+      app: defi-portal-scanner
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: defi-portal-scanner
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: defi-portal-scanner
+          image: 002208042662.dkr.ecr.eu-central-1.amazonaws.com/defi-portal-scanner
+          ports:
+            - containerPort: 2011
+          imagePullPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: defi-portal-scanner-service
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: 2011
+      protocol: TCP
+  selector:
+    app: defi-portal-scanner
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: defi-portal-scanner-service-public
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      targetPort: 2011
+      protocol: TCP
+  selector:
+    app: defi-portal-scanner
