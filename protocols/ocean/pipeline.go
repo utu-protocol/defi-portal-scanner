@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/barkimedes/go-deepcopy"
+	"github.com/utu-crowdsale/defi-portal-scanner/collector"
 )
 
 func paginatedGraphQuery(baseQuery string, respContainer pageEmptiable) (pages []interface{}, err error) {
@@ -176,6 +177,56 @@ func pipeline(log *log.Logger) (assets []*Asset, err error) {
 	fmt.Println(string(j))
 	fmt.Println("len(assets)", len(assets))
 	return assets, nil
+}
+
+func PostAssetsToUTU(assets []*Asset, u *collector.UTUClient, log *log.Logger) {
+	for _, asset := range assets {
+		assetTe := asset.toTrustEntity()
+		err := u.PostEntity(assetTe)
+		if err != nil {
+			log.Println(err)
+		} else {
+			log.Printf("%s posted to UTU\n", asset.Identifier())
+		}
+
+		poolTe := asset.Pool.toTrustEntity()
+		err = u.PostEntity(poolTe)
+		if err != nil {
+			log.Println(err)
+		} else {
+			log.Printf("%s posted to UTU\n", asset.Pool.Identifier())
+		}
+
+		assetPoolRelationship := collector.NewTrustRelationship()
+		assetPoolRelationship.SourceCriteria = assetTe
+		assetPoolRelationship.TargetCriteria = poolTe
+		assetPoolRelationship.Type = "belongsTo"
+		err = u.PostRelationship(assetPoolRelationship)
+		if err != nil {
+			log.Println(err)
+		} else {
+			log.Printf("Relationship between %s and %s posted to UTU\n", asset.Identifier(), asset.Pool.Identifier())
+		}
+
+		datatokenTe := asset.Datatoken.toTrustEntity()
+		err = u.PostEntity(datatokenTe)
+		if err != nil {
+			log.Println(err)
+		} else {
+			log.Printf("%s posted to UTU\n", asset.Datatoken.Identifier())
+		}
+
+		assetDatatokenRelationship := collector.NewTrustRelationship()
+		assetDatatokenRelationship.SourceCriteria = assetTe
+		assetDatatokenRelationship.TargetCriteria = poolTe
+		assetDatatokenRelationship.Type = "belongsTo"
+		err = u.PostRelationship(assetDatatokenRelationship)
+		if err != nil {
+			log.Println(err)
+		} else {
+			log.Printf("Relationship between %s and %s posted to UTU\n", asset.Identifier(), asset.Datatoken.Identifier())
+		}
+	}
 }
 
 type pageEmptiable interface {

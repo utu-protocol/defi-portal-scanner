@@ -37,6 +37,17 @@ func graphQuery(query string, respContainer interface{}) (err error) {
 	return nil
 }
 
+// aquariusError is needed to tell the upper layer more nuanced errors, like
+// whether it was 404 not found or 503 service unavailable
+type aquariusError struct {
+	StatusCode int
+	Body       []byte
+}
+
+func (ae *aquariusError) Error() string {
+	return fmt.Sprintf("Aquarius error: %v %v", ae.StatusCode, ae.Body)
+}
+
 // aquariusQuery gets additional data like purgatory status and a dataset
 // description from Aquarius. The argument datatokenAddress must be the 0x...
 // Ethereum address, which will be stripped of its 0x prefix to produce the DID.

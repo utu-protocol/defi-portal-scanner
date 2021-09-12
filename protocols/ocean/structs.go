@@ -1,7 +1,11 @@
 package ocean
 
 import (
+	"fmt"
 	"strconv"
+
+	"github.com/fatih/structs"
+	"github.com/utu-crowdsale/defi-portal-scanner/collector"
 )
 
 type Asset struct {
@@ -12,6 +16,28 @@ type Asset struct {
 	Consumed    uint64     `json:"consumed"`     // Times this data asset was consumed
 }
 
+func (a *Asset) Identifier() string {
+	return fmt.Sprintf("Asset %s %s", a.Datatoken.Symbol, a.Datatoken.Address)
+}
+
+func (a *Asset) toTrustEntity() (te *collector.TrustEntity) {
+	te = collector.NewTrustEntity(a.Identifier())
+
+	te.Ids["name"] = a.Datatoken.Name
+	te.Ids["symbol"] = a.Datatoken.Symbol
+	te.Ids["address_datatoken"] = a.Datatoken.Address
+	te.Ids["address_pool"] = a.Pool.Address
+
+	te.Properties = structs.Map(a)
+	te.Type = "Asset"
+
+	// These are already represented as other UTU Trust Entity objects, no need
+	// to duplicate them as maps here
+	delete(te.Properties, "Pool")
+	delete(te.Properties, "Datatoken")
+	return
+}
+
 type Pool struct {
 	Address          string  `json:"address"`
 	Controller       string  `json:"controller"`
@@ -19,6 +45,19 @@ type Pool struct {
 	OceanReserve     float64 `json:"ocean_reserve"`
 	DatatokenReserve float64 `json:"datatoken_reserve"`
 }
+
+func (p *Pool) Identifier() string {
+	return fmt.Sprintf("Pool %s", p.Address)
+}
+
+func (p *Pool) toTrustEntity() (te *collector.TrustEntity) {
+	te = collector.NewTrustEntity(fmt.Sprintf("Pool %s", p.Address))
+	te.Ids["address"] = p.Address
+	te.Properties = structs.Map(p)
+	te.Type = "Pool"
+	return
+}
+
 type DatatokenResponse struct {
 	Address    string
 	Name       string
@@ -75,6 +114,18 @@ type Datatoken struct {
 	Name       string `json:"name"`        // Risible Pelican Token
 	Symbol     string `json:"symbol"`      // RISPEL-91
 	OrderCount uint64 `json:"order_count"` // 1 TokenOrder is one consumption of the asset
+}
+
+func (d *Datatoken) Identifier() string {
+	return fmt.Sprintf("Datatoken %s (%s)", d.Address, d.Symbol)
+}
+
+func (d *Datatoken) toTrustEntity() (te *collector.TrustEntity) {
+	te = collector.NewTrustEntity(fmt.Sprintf("Datatoken %s", d.Address))
+	te.Ids["address"] = d.Address
+	te.Properties = structs.Map(d)
+	te.Type = "Datatoken"
+	return
 }
 
 func NewDataToken(address, name, symbol string, orderCount uint64) (dt *Datatoken) {
