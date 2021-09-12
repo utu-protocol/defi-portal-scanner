@@ -147,11 +147,13 @@ func pipeline(log *log.Logger) (assets []*Asset, err error) {
 
 		// In practice, Aquarius only knows about Datatokens which have Pools.
 		var purgatoryStatus bool
-		ddo, err := aquariusQuery(dt.Address)
-		if err != nil {
-			log.Printf("%s is not known by Aquarius, skipping: %s", dt.Address, err)
-			continue
-		}
+		// ddo, err := aquariusQuery(dt.Address)
+		// if err != nil {
+		// 	log.Printf("%s is not known by Aquarius, skipping: %s", dt.Address, err)
+		// 	continue
+		// }
+		ddo := DecentralizedDataObject{} // mock Aquarius out since it isn't working atm
+		ddo.IsInPurgatory = "false"
 
 		purgatoryStatus, err = strconv.ParseBool(ddo.IsInPurgatory)
 		if err != nil {
