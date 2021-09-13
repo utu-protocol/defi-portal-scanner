@@ -103,10 +103,69 @@ func (pgr *PoolGraphQLResponse) toPool() (p *Pool, err error) {
 
 }
 
-type Account struct {
-	Address     string   `json:"address"`
-	AssetsOwned []*Asset `json:"assets_owned"`
-	Purgatory   bool     `json:"purgatory"`
+type User struct {
+	Address               string                  `json:"address"`
+	Purgatory             bool                    `json:"purgatory"`
+	DatatokenInteractions []*DatatokenInteraction `json:"datatoken_interactions"`
+	PoolInteractions      []*PoolInteraction      `json:"pool_interactions"`
+}
+
+func NewUserFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (u *User, err error) {
+	/*
+		{
+			"id": "0x006d0f31a00e1f9c017ab039e9d0ba699433a28c",
+			"orders": [
+				{
+				"amount": "1",
+				"datatokenId": {
+					"id": "0xfcb47f5781f14ed7e032bd395113b84c897aa23f",
+					"name": "Trenchant Pelican Token",
+					"symbol": "TREPEL-36"
+				},
+				"timestamp": 1629082751
+				}
+			],
+			"poolTransactions": [
+				{
+				"event": "swap",
+				"poolAddressStr": "0xa94a4ed3b3414bb2468e5c200d68e56d4ce180f9",
+				"sharesTransferAmount": "0",
+				"timestamp": 1605717888
+				},
+			]
+		}
+	*/
+
+	u = &User{
+		Address:               ur.ID,
+		Purgatory:             false,
+		DatatokenInteractions: []*DatatokenInteraction{},
+		PoolInteractions:      []*PoolInteraction{},
+	}
+	_, ok := purgatoryMap[ur.ID]
+	if ok {
+		u.Purgatory = true
+	}
+
+	for _, x := range ur.Orders {
+		dti := &DatatokenInteraction{
+			AddressUser:      ur.ID,
+			AddressDatatoken: x.DatatokenID.ID,
+			SymbolDatatoken:  x.DatatokenID.Symbol,
+			Timestamp:        x.Timestamp,
+		}
+		u.DatatokenInteractions = append(u.DatatokenInteractions, dti)
+	}
+	for _, x := range ur.PoolTransactions {
+		p := &PoolInteraction{
+			AddressUser: ur.ID,
+			AddressPool: x.PoolAddress,
+			Event:       x.Event,
+			Timestamp:   x.Timestamp,
+		}
+		u.PoolInteractions = append(u.PoolInteractions, p)
+	}
+	return
 }
 
 type Datatoken struct {
@@ -143,4 +202,37 @@ func NewDataTokenFromDatatokenResponse(dtr DatatokenResponse) (dt *Datatoken, er
 		return
 	}
 	return NewDataToken(dtr.Address, dtr.Name, dtr.Symbol, uint64(orderCount)), nil
+}
+
+type DatatokenInteraction struct {
+	AddressUser      string `json:"address_user"`
+	AddressDatatoken string `json:"address_datatoken"`
+	SymbolDatatoken  string `json:"symbol_datatoken"`
+	Timestamp        uint64 `json:"timestamp"`
+}
+
+type PoolInteraction struct {
+	AddressUser string `json:"address_user"`
+	AddressPool string `json:"address_pool"`
+	Event       string `json:"event"`
+	Timestamp   uint64 `json:"timestamp"`
+}
+
+type UserResponse struct {
+	ID     string `json:"id"`
+	Orders []struct {
+		Timestamp   uint64 `json:"timestamp"`
+		Amount      string `json:"amount"`
+		DatatokenID struct {
+			ID     string `json:"id"`
+			Name   string `json:"name"`
+			Symbol string `json:"symbol"`
+		} `json:"datatokenId"`
+	} `json:"orders"`
+	PoolTransactions []struct {
+		Event                string `json:"event"`
+		PoolAddress          string `json:"poolAddressStr"`
+		SharesTransferAmount string `json:"sharesTransferAmount"`
+		Timestamp            uint64 `json:"timestamp"`
+	} `json:"poolTransactions"`
 }
