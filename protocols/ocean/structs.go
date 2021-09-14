@@ -2,6 +2,7 @@ package ocean
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/fatih/structs"
@@ -110,6 +111,52 @@ type User struct {
 	PoolInteractions      []*PoolInteraction      `json:"pool_interactions"`
 }
 
+func (u *User) toTrustEntity() (te *collector.TrustEntity) {
+	te = collector.NewTrustEntity(fmt.Sprintf("User/Account %s", u.Address))
+	te.Ids["address"] = u.Address
+	te.Properties["purgatory"] = u.Purgatory
+	te.Type = "User"
+
+	return te
+}
+
+func (u *User) datatokenInteractionsToTrustRelationships(datatokensMap map[string]*collector.TrustEntity, log *log.Logger) (tr []*collector.TrustRelationship) {
+	for _, dti := range u.DatatokenInteractions {
+		t := collector.NewTrustRelationship()
+		t.SourceCriteria = u.toTrustEntity()
+		x, ok := datatokensMap[checksumAddress(dti.AddressDatatoken)]
+		if !ok {
+			log.Printf("%#v mentioned a datatoken %s but I don't know anything about it\n", dti, dti.AddressDatatoken)
+		}
+		t.TargetCriteria = x
+		t.Type = "interaction"
+		t.Properties = structs.Map(dti)
+		t.Properties["description"] = "Consumption"
+		tr = append(tr, t)
+	}
+	return tr
+}
+
+func (u *User) poolInteractionsToTrustRelationships(poolsMap map[string]*collector.TrustEntity, log *log.Logger) (poolInteractionTes []*collector.TrustRelationship) {
+	for _, pi := range u.PoolInteractions {
+		tr := collector.NewTrustRelationship()
+		tr.SourceCriteria = u.toTrustEntity()
+		x, ok := poolsMap[checksumAddress(pi.AddressPool)]
+		if !ok {
+			log.Printf("%#v mentioned a pool %s but I don't know anything about it\n", pi, pi.AddressPool)
+		}
+		tr.TargetCriteria = x
+		tr.Properties = structs.Map(pi)
+		tr.Type = "interaction"
+		poolInteractionTes = append(poolInteractionTes, tr)
+	}
+	return poolInteractionTes
+}
+
+func (u *User) Identifier() string {
+	return fmt.Sprintf("User %s", u.Address)
+}
+
 func NewUserFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (u *User, err error) {
 	/*
 		{
@@ -153,15 +200,19 @@ func NewUserFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (u
 			AddressDatatoken: x.DatatokenID.ID,
 			SymbolDatatoken:  x.DatatokenID.Symbol,
 			Timestamp:        x.Timestamp,
+			TxHash:           x.TxHash,
 		}
 		u.DatatokenInteractions = append(u.DatatokenInteractions, dti)
 	}
 	for _, x := range ur.PoolTransactions {
 		p := &PoolInteraction{
-			AddressUser: ur.ID,
-			AddressPool: x.PoolAddress,
-			Event:       x.Event,
-			Timestamp:   x.Timestamp,
+			AddressUser:  ur.ID,
+			AddressPool:  x.PoolAddress,
+			Event:        x.Event,
+			Timestamp:    x.Timestamp,
+			TxHash:       x.TxHash,
+			ConsumePrice: x.ConsumePrice,
+			SpotPrice:    x.SpotPrice,
 		}
 		u.PoolInteractions = append(u.PoolInteractions, p)
 	}
@@ -209,13 +260,17 @@ type DatatokenInteraction struct {
 	AddressDatatoken string `json:"address_datatoken"`
 	SymbolDatatoken  string `json:"symbol_datatoken"`
 	Timestamp        uint64 `json:"timestamp"`
+	TxHash           string `json:"txhash"`
 }
 
 type PoolInteraction struct {
-	AddressUser string `json:"address_user"`
-	AddressPool string `json:"address_pool"`
-	Event       string `json:"event"`
-	Timestamp   uint64 `json:"timestamp"`
+	AddressUser  string `json:"address_user"`
+	AddressPool  string `json:"address_pool"`
+	Event        string `json:"event"`
+	Timestamp    uint64 `json:"timestamp"`
+	TxHash       string `json:"txhash"`
+	ConsumePrice string `json:"consumePrice"`
+	SpotPrice    string `json:"spotPrice"`
 }
 
 type UserResponse struct {
@@ -223,6 +278,7 @@ type UserResponse struct {
 	Orders []struct {
 		Timestamp   uint64 `json:"timestamp"`
 		Amount      string `json:"amount"`
+		TxHash      string `json:"tx"`
 		DatatokenID struct {
 			ID     string `json:"id"`
 			Name   string `json:"name"`
@@ -234,5 +290,8 @@ type UserResponse struct {
 		PoolAddress          string `json:"poolAddressStr"`
 		SharesTransferAmount string `json:"sharesTransferAmount"`
 		Timestamp            uint64 `json:"timestamp"`
+		ConsumePrice         string `json:"consumePrice"`
+		SpotPrice            string `json:"spotPrice"`
+		TxHash               string `json:"tx"`
 	} `json:"poolTransactions"`
 }
