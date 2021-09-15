@@ -326,10 +326,10 @@ func PostToUTU(users []*User, assets []*Asset, u *collector.UTUClient, log *log.
 		poolTes := user.poolInteractionsToTrustRelationships(poolsMap, log)
 
 		if len(dtiTes) > 0 {
-			fmt.Println(dtiTes)
+			fmt.Println("datatokenRelationships", len(dtiTes))
 		}
 		if len(poolTes) > 0 {
-			fmt.Println(poolTes)
+			fmt.Println("poolRelationships", len(poolTes))
 		}
 
 		// POST User to UTU API

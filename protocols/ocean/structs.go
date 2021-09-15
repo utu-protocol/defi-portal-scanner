@@ -131,7 +131,7 @@ func (u *User) datatokenInteractionsToTrustRelationships(datatokensMap map[strin
 		t.TargetCriteria = x
 		t.Type = "interaction"
 		t.Properties = structs.Map(dti)
-		t.Properties["description"] = "Consumption"
+		t.Properties["action"] = "Consumption"
 		tr = append(tr, t)
 	}
 	return tr
@@ -147,6 +147,7 @@ func (u *User) poolInteractionsToTrustRelationships(poolsMap map[string]*collect
 		}
 		tr.TargetCriteria = x
 		tr.Properties = structs.Map(pi)
+		tr.Properties["action"] = pi.Event
 		tr.Type = "interaction"
 		poolInteractionTes = append(poolInteractionTes, tr)
 	}
