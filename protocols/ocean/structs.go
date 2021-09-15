@@ -95,7 +95,7 @@ func (pgr *PoolGraphQLResponse) toPool() (p *Pool, err error) {
 
 	p = &Pool{
 		Address:          checksumAddress(pgr.ID),
-		Controller:       pgr.Controller,
+		Controller:       checksumAddress(pgr.Controller),
 		TotalSwapVolume:  sv,
 		OceanReserve:     or,
 		DatatokenReserve: dtr,
@@ -184,7 +184,7 @@ func NewUserFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (u
 	*/
 
 	u = &User{
-		Address:               ur.ID,
+		Address:               checksumAddress(ur.ID),
 		Purgatory:             false,
 		DatatokenInteractions: []*DatatokenInteraction{},
 		PoolInteractions:      []*PoolInteraction{},
@@ -196,8 +196,8 @@ func NewUserFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (u
 
 	for _, x := range ur.Orders {
 		dti := &DatatokenInteraction{
-			AddressUser:      ur.ID,
-			AddressDatatoken: x.DatatokenID.ID,
+			AddressUser:      checksumAddress(ur.ID),
+			AddressDatatoken: checksumAddress(x.DatatokenID.ID),
 			SymbolDatatoken:  x.DatatokenID.Symbol,
 			Timestamp:        x.Timestamp,
 			TxHash:           x.TxHash,
@@ -206,8 +206,8 @@ func NewUserFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (u
 	}
 	for _, x := range ur.PoolTransactions {
 		p := &PoolInteraction{
-			AddressUser:  ur.ID,
-			AddressPool:  x.PoolAddress,
+			AddressUser:  checksumAddress(ur.ID),
+			AddressPool:  checksumAddress(x.PoolAddress),
 			Event:        x.Event,
 			Timestamp:    x.Timestamp,
 			TxHash:       x.TxHash,

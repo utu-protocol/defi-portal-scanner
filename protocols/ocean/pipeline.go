@@ -168,7 +168,7 @@ func pipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 		asset := &Asset{
 			Pool:        pool,
 			Datatoken:   dt,
-			PublishedBy: pool.Controller,
+			PublishedBy: checksumAddress(pool.Controller),
 			Purgatory:   purgatoryStatus,
 			Consumed:    dt.OrderCount,
 		}
