@@ -23,15 +23,15 @@ func readJson(t *testing.T, path string) (u []byte) {
 
 func TestPipelineAssets(t *testing.T) {
 	logger := log.Default()
-	_, err := pipelineAssets(logger)
+	assets, err := pipelineAssets(logger)
 	assert.Nil(t, err)
 
-	// a, err := json.MarshalIndent(assets, "", "\t")
-	// assert.Nil(t, err)
-	// f, err := os.OpenFile("assets.json", os.O_CREATE|os.O_WRONLY, 0644)
-	// assert.Nil(t, err)
-	// _, err = f.Write(a)
-	// assert.Nil(t, err)
+	a, err := json.MarshalIndent(assets, "", "\t")
+	assert.Nil(t, err)
+	f, err := os.OpenFile("assets.json", os.O_CREATE|os.O_WRONLY, 0644)
+	assert.Nil(t, err)
+	_, err = f.Write(a)
+	assert.Nil(t, err)
 }
 
 func TestPipelineUsers(t *testing.T) {
