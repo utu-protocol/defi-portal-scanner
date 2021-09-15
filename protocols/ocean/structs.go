@@ -39,6 +39,22 @@ func (a *Asset) toTrustEntity() (te *collector.TrustEntity) {
 	return
 }
 
+func (a *Asset) poolToTrustRelationship() (tr *collector.TrustRelationship) {
+	tr = collector.NewTrustRelationship()
+	tr.SourceCriteria = a.toTrustEntity()
+	tr.TargetCriteria = a.Pool.toTrustEntity()
+	tr.Type = "belongsTo"
+	return
+}
+
+func (a *Asset) datatokenToTrustRelationship() (tr *collector.TrustRelationship) {
+	tr = collector.NewTrustRelationship()
+	tr.SourceCriteria = a.toTrustEntity()
+	tr.TargetCriteria = a.Datatoken.toTrustEntity()
+	tr.Type = "belongsTo"
+	return
+}
+
 type Pool struct {
 	Address          string  `json:"address"`
 	Controller       string  `json:"controller"`

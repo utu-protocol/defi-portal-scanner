@@ -38,10 +38,7 @@ func PostAssetsToUTU(assets []*Asset, u *collector.UTUClient, log *log.Logger) (
 		}
 		datatokenTes = append(datatokenTes, datatokenTe)
 
-		assetPoolRelationship := collector.NewTrustRelationship()
-		assetPoolRelationship.SourceCriteria = assetTe
-		assetPoolRelationship.TargetCriteria = poolTe
-		assetPoolRelationship.Type = "belongsTo"
+		assetPoolRelationship := asset.poolToTrustRelationship()
 		err = u.PostRelationship(assetPoolRelationship)
 		if err != nil {
 			log.Println(err)
@@ -49,10 +46,7 @@ func PostAssetsToUTU(assets []*Asset, u *collector.UTUClient, log *log.Logger) (
 			log.Printf("Relationship between %s and %s posted to UTU\n", asset.Identifier(), asset.Pool.Identifier())
 		}
 
-		assetDatatokenRelationship := collector.NewTrustRelationship()
-		assetDatatokenRelationship.SourceCriteria = assetTe
-		assetDatatokenRelationship.TargetCriteria = poolTe
-		assetDatatokenRelationship.Type = "belongsTo"
+		assetDatatokenRelationship := asset.datatokenToTrustRelationship()
 		err = u.PostRelationship(assetDatatokenRelationship)
 		if err != nil {
 			log.Println(err)
