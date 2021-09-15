@@ -131,12 +131,13 @@ func pipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 			log.Println("Error while transforming PoolGraphQLResponse to Pool struct", err)
 			return nil, err
 		}
+		poolDatatokenAddress := checksumAddress(pGrQlResp.DatatokenAddress)
 
-		x, ok := pm[checksumAddress(pGrQlResp.DatatokenAddress)]
+		x, ok := pm[poolDatatokenAddress]
 		if !ok {
-			pm[checksumAddress(pGrQlResp.DatatokenAddress)] = pool
+			pm[poolDatatokenAddress] = pool
 		} else {
-			panic(fmt.Sprintf("There already is a pool %s for datatoken %s, but we are trying to overwrite it with another %s", x.Address, checksumAddress(pGrQlResp.DatatokenAddress), pool.Address))
+			log.Println(fmt.Sprintf("Datatoken %s already has pool %s, but we are trying to overwrite it with another pool %s", poolDatatokenAddress, x.Address, pool.Address))
 		}
 	}
 
