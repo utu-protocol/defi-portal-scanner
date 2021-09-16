@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/fatih/structs"
 	"github.com/utu-crowdsale/defi-portal-scanner/collector"
 )
 
 type Asset struct {
-	Pool        *Pool      `json:"pool"`
+	Pool        []*Pool    `json:"pool"`
 	Datatoken   *Datatoken `json:"datatoken"`
 	PublishedBy string     `json:"published_by"` // this is obtained from pool.controller
 	Purgatory   bool       `json:"purgatory"`    // when could this be null? when Aquarius does not have this in the database
@@ -27,7 +28,12 @@ func (a *Asset) toTrustEntity() (te *collector.TrustEntity) {
 	te.Ids["name"] = a.Datatoken.Name
 	te.Ids["symbol"] = a.Datatoken.Symbol
 	te.Ids["address_datatoken"] = a.Datatoken.Address
-	te.Ids["address_pool"] = a.Pool.Address
+
+	var poolAddresses []string
+	for _, p := range a.Pool {
+		poolAddresses = append(poolAddresses, p.Address)
+	}
+	te.Ids["addresses_pool"] = strings.Join(poolAddresses, ",")
 
 	te.Properties = structs.Map(a)
 	te.Type = "Asset"
@@ -39,11 +45,21 @@ func (a *Asset) toTrustEntity() (te *collector.TrustEntity) {
 	return
 }
 
-func (a *Asset) poolToTrustRelationship() (tr *collector.TrustRelationship) {
-	tr = collector.NewTrustRelationship()
-	tr.SourceCriteria = a.toTrustEntity()
-	tr.TargetCriteria = a.Pool.toTrustEntity()
-	tr.Type = "belongsTo"
+func (a *Asset) poolsToTrustEntities() (te []*collector.TrustEntity) {
+	for _, p := range a.Pool {
+		te = append(te, p.toTrustEntity())
+	}
+	return
+}
+
+func (a *Asset) poolToTrustRelationship() (tr []*collector.TrustRelationship) {
+	for _, pool := range a.Pool {
+		r := collector.NewTrustRelationship()
+		r.SourceCriteria = a.toTrustEntity()
+		r.TargetCriteria = pool.toTrustEntity()
+		r.Type = "belongsTo"
+		tr = append(tr, r)
+	}
 	return
 }
 
@@ -68,7 +84,7 @@ func (p *Pool) Identifier() string {
 }
 
 func (p *Pool) toTrustEntity() (te *collector.TrustEntity) {
-	te = collector.NewTrustEntity(fmt.Sprintf("Pool %s", p.Address))
+	te = collector.NewTrustEntity(p.Identifier())
 	te.Ids["address"] = p.Address
 	te.Properties = structs.Map(p)
 	te.Type = "Pool"
@@ -158,11 +174,16 @@ func (u *User) poolInteractionsToTrustRelationships(poolsMap map[string]*collect
 	for _, pi := range u.PoolInteractions {
 		tr := collector.NewTrustRelationship()
 		tr.SourceCriteria = u.toTrustEntity()
-		x, ok := poolsMap[checksumAddress(pi.AddressPool)]
+
+		// A User may have interacted with an Asset through a Datatoken. Here we
+		// check if the datatoken has pools associated with it.
+
+		poolTe, ok := poolsMap[pi.AddressPool]
 		if !ok {
-			log.Printf("%#v mentioned a pool %s but I don't know anything about it\n", pi, pi.AddressPool)
+			log.Printf("%s interacted with a Pool %s but we haven't heard of it\n", u.Identifier(), pi.AddressPool)
 		}
-		tr.TargetCriteria = x
+
+		tr.TargetCriteria = poolTe
 		tr.Properties = structs.Map(pi)
 		tr.Properties["action"] = pi.Event
 		tr.Type = "interaction"

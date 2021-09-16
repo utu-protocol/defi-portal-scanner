@@ -9,7 +9,7 @@ import (
 
 // PostAssetsToUTU works like this: Post Asset, then Pool, then Datatoken, then
 // post the relationships (Asset owns Pool and Datatokens) between them all
-func PostAssetsToUTU(assets []*Asset, u *collector.UTUClient, log *log.Logger) (assetTes []*collector.TrustEntity, poolTes []*collector.TrustEntity, datatokenTes []*collector.TrustEntity) {
+func PostAssetsToUTU(assets []*Asset, u *collector.UTUClient, log *log.Logger) {
 	for _, asset := range assets {
 		assetTe := asset.toTrustEntity()
 		err := u.PostEntity(assetTe)
@@ -18,16 +18,16 @@ func PostAssetsToUTU(assets []*Asset, u *collector.UTUClient, log *log.Logger) (
 		} else {
 			log.Printf("%s posted to UTU\n", asset.Identifier())
 		}
-		assetTes = append(assetTes, assetTe)
 
-		poolTe := asset.Pool.toTrustEntity()
-		err = u.PostEntity(poolTe)
-		if err != nil {
-			log.Println(err)
-		} else {
-			log.Printf("%s posted to UTU\n", asset.Pool.Identifier())
+		poolTes := asset.poolsToTrustEntities()
+		for _, poolTe := range poolTes {
+			err = u.PostEntity(poolTe)
+			if err != nil {
+				log.Println(err)
+			} else {
+				log.Printf("%s posted to UTU\n", poolTe.Name)
+			}
 		}
-		poolTes = append(poolTes, poolTe)
 
 		datatokenTe := asset.Datatoken.toTrustEntity()
 		err = u.PostEntity(datatokenTe)
@@ -36,14 +36,15 @@ func PostAssetsToUTU(assets []*Asset, u *collector.UTUClient, log *log.Logger) (
 		} else {
 			log.Printf("%s posted to UTU\n", asset.Datatoken.Identifier())
 		}
-		datatokenTes = append(datatokenTes, datatokenTe)
 
-		assetPoolRelationship := asset.poolToTrustRelationship()
-		err = u.PostRelationship(assetPoolRelationship)
-		if err != nil {
-			log.Println(err)
-		} else {
-			log.Printf("Relationship between %s and %s posted to UTU\n", asset.Identifier(), asset.Pool.Identifier())
+		assetPoolRelationships := asset.poolToTrustRelationship()
+		for _, pr := range assetPoolRelationships {
+			err = u.PostRelationship(pr)
+			if err != nil {
+				log.Println(err)
+			} else {
+				log.Printf("Relationship between %s and %s (type: %s) posted to UTU\n", pr.SourceCriteria.Name, pr.TargetCriteria.Name, pr.Type)
+			}
 		}
 
 		assetDatatokenRelationship := asset.datatokenToTrustRelationship()
@@ -68,7 +69,15 @@ func PostToUTU(users []*User, assets []*Asset, u *collector.UTUClient, log *log.
 	for _, x := range assets {
 		assetsMap[x.Datatoken.Address] = x.toTrustEntity()
 		datatokensMap[x.Datatoken.Address] = x.Datatoken.toTrustEntity()
-		poolsMap[x.Pool.Address] = x.Pool.toTrustEntity()
+
+		// For the pools, for each user, we need to check if we know about any
+		// of the Pools that he has interacted with (through Datatokens/Assets),
+		// and if so, get a TrustEntity for that pool. This means that poolsMap
+		// is flat - it contains no information about which Asset holds the
+		// Pool.
+		for _, poolTe := range x.poolsToTrustEntities() {
+			poolsMap[poolTe.Ids["address"]] = poolTe
+		}
 	}
 
 	// PostAssetsToUTU(assets, u, log)

@@ -126,7 +126,7 @@ func pipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 		page := p.(*PoolResponsePage)
 		pr = append(pr, page.Flatten()...)
 	}
-	pm := make(map[string]*Pool)
+	pm := make(map[string][]*Pool)
 	for _, pGrQlResp := range pr {
 		pool, err := pGrQlResp.toPool()
 		if err != nil {
@@ -135,12 +135,7 @@ func pipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 		}
 		poolDatatokenAddress := checksumAddress(pGrQlResp.DatatokenAddress)
 
-		x, ok := pm[poolDatatokenAddress]
-		if !ok {
-			pm[poolDatatokenAddress] = pool
-		} else {
-			log.Println(fmt.Sprintf("Datatoken %s already has pool %s, but we are trying to overwrite it with another pool %s", poolDatatokenAddress, x.Address, pool.Address))
-		}
+		pm[poolDatatokenAddress] = append(pm[poolDatatokenAddress], pool)
 	}
 
 	// We have Pools and Datatokens, so we can now construct Assets. A Datatoken
