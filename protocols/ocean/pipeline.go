@@ -10,14 +10,16 @@ import (
 )
 
 func paginatedGraphQuery(baseQuery string, respContainer pageEmptiable) (pages []interface{}, err error) {
+	pageSize := 100
 	i := 0
 	for {
 		var query string
 		if i == 0 {
-			query = fmt.Sprintf(baseQuery, ",first:1000")
+			pagingConstraint := fmt.Sprintf(",first:%d", pageSize)
+			query = fmt.Sprintf(baseQuery, pagingConstraint)
 		} else {
-			s := fmt.Sprintf(",first:1000,skip:%d", i)
-			query = fmt.Sprintf(baseQuery, s)
+			pagingConstraint := fmt.Sprintf(",first:%d,skip:%d", pageSize, i)
+			query = fmt.Sprintf(baseQuery, pagingConstraint)
 		}
 
 		err = graphQuery(query, respContainer, false)
@@ -31,7 +33,7 @@ func paginatedGraphQuery(baseQuery string, respContainer pageEmptiable) (pages [
 
 		page := deepcopy.MustAnything(respContainer)
 		pages = append(pages, page)
-		i += 1000
+		i += pageSize
 	}
 	return
 }
