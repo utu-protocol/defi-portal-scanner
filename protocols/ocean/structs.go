@@ -84,7 +84,8 @@ type DatatokenResponse struct {
 			ID string
 		}
 	}
-	Symbol string
+	Publisher string
+	Symbol    string
 }
 type PoolGraphQLResponse struct {
 	Controller       string
@@ -241,6 +242,7 @@ type Datatoken struct {
 	Name       string `json:"name"`        // Risible Pelican Token
 	Symbol     string `json:"symbol"`      // RISPEL-91
 	OrderCount uint64 `json:"order_count"` // 1 TokenOrder is one consumption of the asset
+	Publisher  string `json:"publisher"`
 }
 
 func (d *Datatoken) Identifier() string {
@@ -255,12 +257,13 @@ func (d *Datatoken) toTrustEntity() (te *collector.TrustEntity) {
 	return
 }
 
-func NewDataToken(address, name, symbol string, orderCount uint64) (dt *Datatoken) {
+func NewDataToken(address, name, symbol string, orderCount uint64, publisher string) (dt *Datatoken) {
 	return &Datatoken{
 		Address:    checksumAddress(address),
 		Name:       name,
 		Symbol:     symbol,
 		OrderCount: orderCount,
+		Publisher:  publisher,
 	}
 }
 
@@ -269,7 +272,7 @@ func NewDataTokenFromDatatokenResponse(dtr DatatokenResponse) (dt *Datatoken, er
 	if err != nil {
 		return
 	}
-	return NewDataToken(dtr.Address, dtr.Name, dtr.Symbol, uint64(orderCount)), nil
+	return NewDataToken(dtr.Address, dtr.Name, dtr.Symbol, uint64(orderCount), dtr.Publisher), nil
 }
 
 type DatatokenInteraction struct {

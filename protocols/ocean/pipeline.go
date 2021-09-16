@@ -46,6 +46,7 @@ func pipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 		symbol
 		name
 		address
+		publisher
 		orders{
 		  consumer{
 			id
@@ -170,7 +171,7 @@ func pipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 		asset := &Asset{
 			Pool:        pool,
 			Datatoken:   dt,
-			PublishedBy: checksumAddress(pool.Controller),
+			PublishedBy: dt.Publisher,
 			Purgatory:   purgatoryStatus,
 			Consumed:    dt.OrderCount,
 		}
