@@ -52,7 +52,7 @@ func (a *Asset) poolsToTrustEntities() (te []*collector.TrustEntity) {
 	return
 }
 
-func (a *Asset) poolToTrustRelationship() (tr []*collector.TrustRelationship) {
+func (a *Asset) poolsToTrustRelationships() (tr []*collector.TrustRelationship) {
 	for _, pool := range a.Pool {
 		r := collector.NewTrustRelationship()
 		r.SourceCriteria = a.toTrustEntity()
@@ -330,9 +330,15 @@ type UserResponse struct {
 		Event                string `json:"event"`
 		PoolAddress          string `json:"poolAddressStr"`
 		SharesTransferAmount string `json:"sharesTransferAmount"`
+		SharesBalance        string `json:"sharesBalance"`
 		Timestamp            uint64 `json:"timestamp"`
 		ConsumePrice         string `json:"consumePrice"`
 		SpotPrice            string `json:"spotPrice"`
-		TxHash               string `json:"tx"`
+		TokensInvolved       []struct {
+			TokenAddress string `json:"tokenAddress"`
+			Type         string `json:"type"`
+			Value        string `json:"value"`
+		}
+		TxHash string `json:"tx"`
 	} `json:"poolTransactions"`
 }

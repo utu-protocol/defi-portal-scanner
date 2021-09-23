@@ -210,9 +210,15 @@ func pipelineUsers(log *log.Logger) (users []*User, err error) {
 			event
 			timestamp
 			sharesTransferAmount
+			sharesBalance
 			consumePrice
 			spotPrice
 			tx
+			tokens{
+				tokenAddress
+				value
+				type
+			}
 		  }
 		}
 	  }`
