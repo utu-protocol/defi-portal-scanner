@@ -246,6 +246,14 @@ func NewUserFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (u
 		u.DatatokenInteractions = append(u.DatatokenInteractions, dti)
 	}
 	for _, x := range ur.PoolTransactions {
+		tokensInvolved := []*poolInteractionDatatokenReference{}
+		for _, ti := range x.TokensInvolved {
+			tokensInvolved = append(tokensInvolved, &poolInteractionDatatokenReference{
+				AddressDatatoken: checksumAddress(ti.TokenAddress),
+				Type:             ti.Type,
+				Value:            ti.Value,
+			})
+		}
 		p := &PoolInteraction{
 			AddressUser:           checksumAddress(ur.ID),
 			AddressPool:           checksumAddress(x.PoolAddress),
@@ -256,7 +264,9 @@ func NewUserFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (u
 			SpotPrice:             x.SpotPrice,
 			PoolSharesTransferred: x.SharesTransferAmount,
 			PoolSharesBalance:     x.SharesBalance,
+			TokensInvolved:        tokensInvolved,
 		}
+
 		u.PoolInteractions = append(u.PoolInteractions, p)
 	}
 	return
@@ -309,15 +319,22 @@ type DatatokenInteraction struct {
 }
 
 type PoolInteraction struct {
-	AddressUser           string `json:"address_user"`
-	AddressPool           string `json:"address_pool"`
-	Event                 string `json:"event"`
-	Timestamp             uint64 `json:"timestamp"`
-	TxHash                string `json:"txhash"`
-	ConsumePrice          string `json:"consumePrice"`
-	SpotPrice             string `json:"spotPrice"`
-	PoolSharesTransferred string `json:"poolSharesTransferred"` // 0 when swap, nonzero when join/exit
-	PoolSharesBalance     string `json:"poolSharesBalance"`     // 0 when swap, nonzero when join/exit
+	AddressUser           string                               `json:"address_user"`
+	AddressPool           string                               `json:"address_pool"`
+	Event                 string                               `json:"event"`
+	Timestamp             uint64                               `json:"timestamp"`
+	TxHash                string                               `json:"txhash"`
+	ConsumePrice          string                               `json:"consumePrice"`
+	SpotPrice             string                               `json:"spotPrice"`
+	PoolSharesTransferred string                               `json:"poolSharesTransferred"` // 0 when swap, nonzero when join/exit
+	PoolSharesBalance     string                               `json:"poolSharesBalance"`     // 0 when swap, nonzero when join/exit
+	TokensInvolved        []*poolInteractionDatatokenReference `json:"tokens_involved"`
+}
+
+type poolInteractionDatatokenReference struct {
+	AddressDatatoken string `json:"address_datatoken"`
+	Type             string `json:"type"`
+	Value            string `json:"value"`
 }
 
 type UserResponse struct {
@@ -344,7 +361,7 @@ type UserResponse struct {
 			TokenAddress string `json:"tokenAddress"`
 			Type         string `json:"type"`
 			Value        string `json:"value"`
-		}
+		} `json:"tokens"`
 		TxHash string `json:"tx"`
 	} `json:"poolTransactions"`
 }

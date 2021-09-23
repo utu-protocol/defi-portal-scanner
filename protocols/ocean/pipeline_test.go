@@ -35,7 +35,7 @@ func TestPipelineAssets(t *testing.T) {
 func TestPipelineUsers(t *testing.T) {
 	logger := log.Default()
 	users, err := pipelineUsers(logger)
-	fmt.Println("users", users)
+	fmt.Println("len(users)", len(users))
 	assert.Nil(t, err)
 
 	u, err := json.MarshalIndent(users, "", "\t")
