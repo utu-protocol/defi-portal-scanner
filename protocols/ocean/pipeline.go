@@ -173,12 +173,10 @@ func pipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 		assets = append(assets, asset)
 	}
 
-	j, err := json.MarshalIndent(assets, "", "\t")
+	_, err = json.MarshalIndent(assets, "", "\t")
 	if err != nil {
 		return
 	}
-	fmt.Println(string(j))
-	fmt.Println("len(assets)", len(assets))
 	return assets, nil
 }
 
