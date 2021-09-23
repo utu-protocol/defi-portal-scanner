@@ -37,7 +37,7 @@ func PostAssetsToUTU(assets []*Asset, u *collector.UTUClient, log *log.Logger) {
 			log.Printf("%s posted to UTU\n", asset.Datatoken.Identifier())
 		}
 
-		assetPoolRelationships := asset.poolToTrustRelationship()
+		assetPoolRelationships := asset.poolsToTrustRelationships()
 		for _, pr := range assetPoolRelationships {
 			err = u.PostRelationship(pr)
 			if err != nil {
