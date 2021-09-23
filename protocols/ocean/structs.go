@@ -160,6 +160,7 @@ func (u *User) datatokenInteractionsToTrustRelationships(datatokensMap map[strin
 		x, ok := datatokensMap[checksumAddress(dti.AddressDatatoken)]
 		if !ok {
 			log.Printf("%#v mentioned a datatoken %s but I don't know anything about it\n", dti, dti.AddressDatatoken)
+			continue
 		}
 		t.TargetCriteria = x
 		t.Type = "interaction"
@@ -181,6 +182,7 @@ func (u *User) poolInteractionsToTrustRelationships(poolsMap map[string]*collect
 		poolTe, ok := poolsMap[pi.AddressPool]
 		if !ok {
 			log.Printf("%s interacted with a Pool %s but we haven't heard of it\n", u.Identifier(), pi.AddressPool)
+			continue
 		}
 
 		tr.TargetCriteria = poolTe
@@ -245,13 +247,15 @@ func NewUserFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (u
 	}
 	for _, x := range ur.PoolTransactions {
 		p := &PoolInteraction{
-			AddressUser:  checksumAddress(ur.ID),
-			AddressPool:  checksumAddress(x.PoolAddress),
-			Event:        x.Event,
-			Timestamp:    x.Timestamp,
-			TxHash:       x.TxHash,
-			ConsumePrice: x.ConsumePrice,
-			SpotPrice:    x.SpotPrice,
+			AddressUser:           checksumAddress(ur.ID),
+			AddressPool:           checksumAddress(x.PoolAddress),
+			Event:                 x.Event,
+			Timestamp:             x.Timestamp,
+			TxHash:                x.TxHash,
+			ConsumePrice:          x.ConsumePrice,
+			SpotPrice:             x.SpotPrice,
+			PoolSharesTransferred: x.SharesTransferAmount,
+			PoolSharesBalance:     x.SharesBalance,
 		}
 		u.PoolInteractions = append(u.PoolInteractions, p)
 	}
@@ -305,13 +309,15 @@ type DatatokenInteraction struct {
 }
 
 type PoolInteraction struct {
-	AddressUser  string `json:"address_user"`
-	AddressPool  string `json:"address_pool"`
-	Event        string `json:"event"`
-	Timestamp    uint64 `json:"timestamp"`
-	TxHash       string `json:"txhash"`
-	ConsumePrice string `json:"consumePrice"`
-	SpotPrice    string `json:"spotPrice"`
+	AddressUser           string `json:"address_user"`
+	AddressPool           string `json:"address_pool"`
+	Event                 string `json:"event"`
+	Timestamp             uint64 `json:"timestamp"`
+	TxHash                string `json:"txhash"`
+	ConsumePrice          string `json:"consumePrice"`
+	SpotPrice             string `json:"spotPrice"`
+	PoolSharesTransferred string `json:"poolSharesTransferred"` // 0 when swap, nonzero when join/exit
+	PoolSharesBalance     string `json:"poolSharesBalance"`     // 0 when swap, nonzero when join/exit
 }
 
 type UserResponse struct {
