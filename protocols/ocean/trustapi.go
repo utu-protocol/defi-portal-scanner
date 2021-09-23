@@ -57,7 +57,7 @@ func PostAssetsToUTU(assets []*Asset, u *collector.UTUClient, log *log.Logger) {
 	}
 }
 
-func PostToUTU(users []*User, assets []*Asset, u *collector.UTUClient, log *log.Logger) {
+func PostUsersToUTU(users []*User, assets []*Asset, u *collector.UTUClient, log *log.Logger) {
 	var usersMap = make(map[string]*collector.TrustEntity)
 	var assetsMap = make(map[string]*collector.TrustEntity)
 	var datatokensMap = make(map[string]*collector.TrustEntity)
@@ -78,9 +78,6 @@ func PostToUTU(users []*User, assets []*Asset, u *collector.UTUClient, log *log.
 			poolsMap[poolTe.Ids["address"]] = poolTe
 		}
 	}
-
-	// PostAssetsToUTU(assets, u, log)
-	// log.Println("Finished posting Assets to UTU")
 
 	for _, user := range users {
 		// Convert users to UTU Trust Entities

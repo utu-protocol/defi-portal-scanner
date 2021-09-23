@@ -29,7 +29,7 @@ func TestPostAssetsToUTU(t *testing.T) {
 	PostAssetsToUTU(assets, utu, logger)
 }
 
-func TestPostToUTU(t *testing.T) {
+func TestPostUsersToUTU(t *testing.T) {
 	logger := log.Default()
 	a := readJson(t, "assets.json")
 	var assets []*Asset
@@ -52,5 +52,5 @@ func TestPostToUTU(t *testing.T) {
 		DryRun:        false,
 	}
 	utu := collector.NewUTUClient(*s)
-	PostToUTU(users, assets, utu, logger)
+	PostUsersToUTU(users, assets, utu, logger)
 }
