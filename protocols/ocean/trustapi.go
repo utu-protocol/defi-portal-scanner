@@ -55,7 +55,6 @@ func PostAssetsToUTU(assets []*Asset, u *collector.UTUClient, log *log.Logger) {
 			log.Printf("Relationship between %s and %s posted to UTU\n", asset.Identifier(), asset.Datatoken.Identifier())
 		}
 	}
-	return
 }
 
 func PostToUTU(users []*User, assets []*Asset, u *collector.UTUClient, log *log.Logger) {
