@@ -39,39 +39,6 @@ func graphQuery(query string, respContainer interface{}, debug bool) (err error)
 	return nil
 }
 
-func threeBoxQuery(publisher string) (name, description string, err error) {
-	resp, err := http.Get(fmt.Sprintf("%s%s", THREEBOX_URL, publisher)) // https://3box.oceanprotocol.com/profile/0xb8e404009d594bbe094d7da32ef181d437a36749
-	if err != nil {
-		return
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return
-	}
-	if resp.StatusCode != 200 {
-		return "", "", &threeBoxError{
-			Publisher:  publisher,
-			StatusCode: resp.StatusCode,
-			Body:       body,
-		}
-	}
-	tbr := new(ThreeBoxResponse)
-	err = json.Unmarshal(body, tbr)
-	return tbr.Name, tbr.Description, err
-}
-
-// threeBoxError is needed to tell the upper layer more nuanced errors, like
-// whether it was 404 not found or 503 service unavailable
-type threeBoxError struct {
-	Publisher  string
-	StatusCode int
-	Body       []byte
-}
-
-func (tbe *threeBoxError) Error() string {
-	return fmt.Sprintf("3box.oceanprotocol.com error while requesting publisher %s: %d %v", tbe.Publisher, tbe.StatusCode, tbe.Body)
-}
-
 // aquariusError is needed to tell the upper layer more nuanced errors, like
 // whether it was 404 not found or 503 service unavailable
 type aquariusError struct {
