@@ -13,6 +13,7 @@ require (
 	github.com/makasim/sentryhook v0.3.0
 	github.com/matryer/is v1.4.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
+	github.com/remeh/sizedwaitgroup v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/viper v1.7.1

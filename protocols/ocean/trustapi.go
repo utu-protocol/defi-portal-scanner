@@ -5,6 +5,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/remeh/sizedwaitgroup"
 	"github.com/utu-crowdsale/defi-portal-scanner/collector"
 )
 
@@ -100,16 +101,16 @@ func PostUsersToUTU(users []*User, assets []*Asset, u *collector.UTUClient, log 
 	// OKAY now we can start parallelized POSTING to UTU Trust API. Because we
 	// only read from the maps, not write to them, the code doesn't have to be
 	// rewritten so much.
-	var wg sync.WaitGroup
+	wg := sizedwaitgroup.New(20)
 	for _, user := range users {
-		wg.Add(1)
-		postUser(user, usersMap, datatokensMap, poolsMap, u, log, &wg)
+		wg.Add()
+		go postUser(user, usersMap, datatokensMap, poolsMap, u, log, &wg)
 	}
 	wg.Wait()
 
 }
 
-func postUser(user *User, usersMap, datatokensMap, poolsMap map[string]*collector.TrustEntity, u *collector.UTUClient, log *log.Logger, wg *sync.WaitGroup) {
+func postUser(user *User, usersMap, datatokensMap, poolsMap map[string]*collector.TrustEntity, u *collector.UTUClient, log *log.Logger, wg *sizedwaitgroup.SizedWaitGroup) {
 	defer wg.Done()
 
 	// Now we can create the relationships between the Users and the
