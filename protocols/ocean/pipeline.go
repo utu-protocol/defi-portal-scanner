@@ -145,7 +145,7 @@ func pipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 		// If Datatoken does not have corresponding Pool, immediately skip it (don't bother Aquarius)
 		pool := pm[dt.Address]
 		if pool == nil {
-			log.Printf("%s does not have a corresponding Pool, skipping", dt.Address)
+			// log.Printf("%s does not have a corresponding Pool, skipping", dt.Address)
 			continue
 		}
 
