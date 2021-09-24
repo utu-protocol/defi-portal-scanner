@@ -11,6 +11,9 @@ import (
 )
 
 type Asset struct {
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	DID         string     `json:"did"`
 	Pool        []*Pool    `json:"pool"`
 	Datatoken   *Datatoken `json:"datatoken"`
 	PublishedBy string     `json:"published_by"` // this is obtained from pool.controller
@@ -307,7 +310,7 @@ func NewDataTokenFromDatatokenResponse(dtr DatatokenResponse) (dt *Datatoken, er
 	if err != nil {
 		return
 	}
-	return NewDataToken(dtr.Address, dtr.Name, dtr.Symbol, uint64(orderCount), dtr.Publisher), nil
+	return NewDataToken(dtr.Address, dtr.Name, dtr.Symbol, uint64(orderCount), checksumAddress(dtr.Publisher)), nil
 }
 
 type DatatokenInteraction struct {

@@ -163,7 +163,16 @@ func pipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 		if err != nil {
 			return nil, err
 		}
+
+		name, desc, err := ddo.GetNameDescription()
+		if err != nil {
+			log.Printf("Asset %s: unable to retrieve name and description from Aquarius: %s", ddo.ID, err)
+		}
+
 		asset := &Asset{
+			Name:        name,
+			Description: desc,
+			DID:         ddo.ID,
 			Pool:        pool,
 			Datatoken:   dt,
 			PublishedBy: dt.Publisher,
