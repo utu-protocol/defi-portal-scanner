@@ -88,45 +88,61 @@ func PostUsersToUTU(users []*User, assets []*Asset, u *collector.UTUClient, log 
 		}
 	}
 
+	// This particular piece of code used to be in the postUser() block, but it
+	// was moved out here so that concurrent writes to this map (which is shared
+	// between goroutines) don't happen.
 	for _, user := range users {
 		// Convert users to UTU Trust Entities
 		userTe := user.toTrustEntity()
 		usersMap[user.Address] = userTe
-
-		// Now we can create the relationships between the Users and the
-		// Datatokens.
-		dtiTes := user.datatokenInteractionsToTrustRelationships(datatokensMap, log)
-		poolTes := user.poolInteractionsToTrustRelationships(poolsMap, log)
-
-		if len(dtiTes) > 0 {
-			fmt.Println("datatokenRelationships", len(dtiTes))
-		}
-		if len(poolTes) > 0 {
-			fmt.Println("poolRelationships", len(poolTes))
-		}
-
-		// POST User to UTU API
-		err := u.PostEntity(userTe)
-		if err != nil {
-			log.Println(err)
-		} else {
-			log.Printf("%s posted to UTU\n", user.Identifier())
-		}
-
-		// POST Relationships to UTU API
-		for _, r := range dtiTes {
-			err := u.PostRelationship(r)
-			if err != nil {
-				log.Println(err)
-			}
-		}
-		for _, r := range poolTes {
-			err := u.PostRelationship(r)
-			if err != nil {
-				log.Println(err)
-			}
-		}
-
 	}
 
+	// OKAY now we can start parallelized POSTING to UTU Trust API. Because we
+	// only read from the maps, not write to them, the code doesn't have to be
+	// rewritten so much.
+	var wg sync.WaitGroup
+	for _, user := range users {
+		wg.Add(1)
+		postUser(user, usersMap, datatokensMap, poolsMap, u, log, &wg)
+	}
+	wg.Wait()
+
+}
+
+func postUser(user *User, usersMap, datatokensMap, poolsMap map[string]*collector.TrustEntity, u *collector.UTUClient, log *log.Logger, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	// Now we can create the relationships between the Users and the
+	// Datatokens.
+	dtiTes := user.datatokenInteractionsToTrustRelationships(datatokensMap, log)
+	poolTes := user.poolInteractionsToTrustRelationships(poolsMap, log)
+
+	if len(dtiTes) > 0 {
+		fmt.Println("datatokenRelationships", len(dtiTes))
+	}
+	if len(poolTes) > 0 {
+		fmt.Println("poolRelationships", len(poolTes))
+	}
+
+	// POST User to UTU API
+	err := u.PostEntity(usersMap[user.Address])
+	if err != nil {
+		log.Println(err)
+	} else {
+		log.Printf("%s posted to UTU\n", user.Identifier())
+	}
+
+	// POST Relationships to UTU API
+	for _, r := range dtiTes {
+		err := u.PostRelationship(r)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+	for _, r := range poolTes {
+		err := u.PostRelationship(r)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 }
