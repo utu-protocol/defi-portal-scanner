@@ -3,6 +3,7 @@ package ocean
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/utu-crowdsale/defi-portal-scanner/collector"
 )
@@ -10,50 +11,58 @@ import (
 // PostAssetsToUTU works like this: Post Asset, then Pool, then Datatoken, then
 // post the relationships (Asset owns Pool and Datatokens) between them all
 func PostAssetsToUTU(assets []*Asset, u *collector.UTUClient, log *log.Logger) {
+	var wg sync.WaitGroup
 	for _, asset := range assets {
-		assetTe := asset.toTrustEntity()
-		err := u.PostEntity(assetTe)
+		wg.Add(1)
+		go postAsset(asset, u, log, &wg)
+	}
+	wg.Wait()
+}
+
+func postAsset(asset *Asset, u *collector.UTUClient, log *log.Logger, wg *sync.WaitGroup) {
+	defer wg.Done()
+	assetTe := asset.toTrustEntity()
+	err := u.PostEntity(assetTe)
+	if err != nil {
+		log.Println(err)
+	} else {
+		log.Printf("%s posted to UTU\n", asset.Identifier())
+	}
+
+	poolTes := asset.poolsToTrustEntities()
+	for _, poolTe := range poolTes {
+		err = u.PostEntity(poolTe)
 		if err != nil {
 			log.Println(err)
 		} else {
-			log.Printf("%s posted to UTU\n", asset.Identifier())
+			log.Printf("%s posted to UTU\n", poolTe.Name)
 		}
+	}
 
-		poolTes := asset.poolsToTrustEntities()
-		for _, poolTe := range poolTes {
-			err = u.PostEntity(poolTe)
-			if err != nil {
-				log.Println(err)
-			} else {
-				log.Printf("%s posted to UTU\n", poolTe.Name)
-			}
-		}
+	datatokenTe := asset.Datatoken.toTrustEntity()
+	err = u.PostEntity(datatokenTe)
+	if err != nil {
+		log.Println(err)
+	} else {
+		log.Printf("%s posted to UTU\n", asset.Datatoken.Identifier())
+	}
 
-		datatokenTe := asset.Datatoken.toTrustEntity()
-		err = u.PostEntity(datatokenTe)
+	assetPoolRelationships := asset.poolsToTrustRelationships()
+	for _, pr := range assetPoolRelationships {
+		err = u.PostRelationship(pr)
 		if err != nil {
 			log.Println(err)
 		} else {
-			log.Printf("%s posted to UTU\n", asset.Datatoken.Identifier())
+			log.Printf("Relationship between %s and %s (type: %s) posted to UTU\n", pr.SourceCriteria.Name, pr.TargetCriteria.Name, pr.Type)
 		}
+	}
 
-		assetPoolRelationships := asset.poolsToTrustRelationships()
-		for _, pr := range assetPoolRelationships {
-			err = u.PostRelationship(pr)
-			if err != nil {
-				log.Println(err)
-			} else {
-				log.Printf("Relationship between %s and %s (type: %s) posted to UTU\n", pr.SourceCriteria.Name, pr.TargetCriteria.Name, pr.Type)
-			}
-		}
-
-		assetDatatokenRelationship := asset.datatokenToTrustRelationship()
-		err = u.PostRelationship(assetDatatokenRelationship)
-		if err != nil {
-			log.Println(err)
-		} else {
-			log.Printf("Relationship between %s and %s posted to UTU\n", asset.Identifier(), asset.Datatoken.Identifier())
-		}
+	assetDatatokenRelationship := asset.datatokenToTrustRelationship()
+	err = u.PostRelationship(assetDatatokenRelationship)
+	if err != nil {
+		log.Println(err)
+	} else {
+		log.Printf("Relationship between %s and %s posted to UTU\n", asset.Identifier(), asset.Datatoken.Identifier())
 	}
 }
 
