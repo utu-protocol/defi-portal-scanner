@@ -39,6 +39,7 @@ func (a *Asset) toTrustEntity() (te *collector.TrustEntity) {
 	te.Ids["addresses_pool"] = strings.Join(poolAddresses, ",")
 
 	te.Properties = structs.Map(a)
+	te.Name = a.Name
 	te.Type = "Asset"
 
 	// These are already represented as other UTU Trust Entity objects, no need
