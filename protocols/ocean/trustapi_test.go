@@ -29,18 +29,18 @@ func TestPostAssetsToUTU(t *testing.T) {
 	PostAssetsToUTU(assets, utu, logger)
 }
 
-func TestPostUsersToUTU(t *testing.T) {
+func TestPostAddressesToUTU(t *testing.T) {
 	logger := log.Default()
-	a := readJson(t, "assets.json")
+	as := readJson(t, "assets.json")
 	var assets []*Asset
-	err := json.Unmarshal(a, &assets)
+	err := json.Unmarshal(as, &assets)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	u := readJson(t, "users.json")
-	var users []*Address
-	err = json.Unmarshal(u, &users)
+	ad := readJson(t, "addresses.json")
+	var addresses []*Address
+	err = json.Unmarshal(ad, &addresses)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,5 +52,5 @@ func TestPostUsersToUTU(t *testing.T) {
 		DryRun:        false,
 	}
 	utu := collector.NewUTUClient(*s)
-	PostAddressesToUTU(users, assets, utu, logger)
+	PostAddressesToUTU(addresses, assets, utu, logger)
 }

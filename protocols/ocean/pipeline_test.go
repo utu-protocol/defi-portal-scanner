@@ -34,14 +34,14 @@ func TestPipelineAssets(t *testing.T) {
 
 func TestPipelineUsers(t *testing.T) {
 	logger := log.Default()
-	users, err := PipelineUsers(logger)
-	fmt.Println("len(users)", len(users))
+	addresses, err := PipelineUsers(logger)
+	fmt.Println("len(addresses)", len(addresses))
 	assert.Nil(t, err)
 
-	u, err := json.MarshalIndent(users, "", "\t")
+	a, err := json.MarshalIndent(addresses, "", "\t")
 	assert.Nil(t, err)
-	f, err := os.OpenFile("users.json", os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile("addresses.json", os.O_CREATE|os.O_WRONLY, 0644)
 	assert.Nil(t, err)
-	_, err = f.Write(u)
+	_, err = f.Write(a)
 	assert.Nil(t, err)
 }

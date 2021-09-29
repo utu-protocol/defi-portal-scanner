@@ -242,7 +242,7 @@ func NewAddressFromUserResponse(ur UserResponse, purgatoryMap map[string]string)
 
 	for _, x := range ur.Orders {
 		dti := &DatatokenInteraction{
-			AddressUser:      checksumAddress(ur.ID),
+			Address:          checksumAddress(ur.ID),
 			AddressDatatoken: checksumAddress(x.DatatokenID.ID),
 			SymbolDatatoken:  x.DatatokenID.Symbol,
 			Timestamp:        x.Timestamp,
@@ -260,7 +260,7 @@ func NewAddressFromUserResponse(ur UserResponse, purgatoryMap map[string]string)
 			})
 		}
 		p := &PoolInteraction{
-			AddressUser:           checksumAddress(ur.ID),
+			Address:               checksumAddress(ur.ID),
 			AddressPool:           checksumAddress(x.PoolAddress),
 			Event:                 x.Event,
 			Timestamp:             x.Timestamp,
@@ -316,7 +316,7 @@ func NewDataTokenFromDatatokenResponse(dtr DatatokenResponse) (dt *Datatoken, er
 }
 
 type DatatokenInteraction struct {
-	AddressUser      string `json:"address_user"`
+	Address          string `json:"address"`
 	AddressDatatoken string `json:"address_datatoken"`
 	SymbolDatatoken  string `json:"symbol_datatoken"`
 	Timestamp        uint64 `json:"timestamp"`
@@ -324,7 +324,7 @@ type DatatokenInteraction struct {
 }
 
 type PoolInteraction struct {
-	AddressUser           string                               `json:"address_user"`
+	Address               string                               `json:"address"`
 	AddressPool           string                               `json:"address_pool"`
 	Event                 string                               `json:"event"`
 	Timestamp             uint64                               `json:"timestamp"`
