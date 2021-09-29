@@ -21,7 +21,7 @@ func readJson(t *testing.T, path string) (u []byte) {
 
 func TestPipelineAssets(t *testing.T) {
 	logger := log.Default()
-	assets, err := pipelineAssets(logger)
+	assets, err := PipelineAssets(logger)
 	assert.Nil(t, err)
 
 	a, err := json.MarshalIndent(assets, "", "\t")
@@ -34,7 +34,7 @@ func TestPipelineAssets(t *testing.T) {
 
 func TestPipelineUsers(t *testing.T) {
 	logger := log.Default()
-	users, err := pipelineUsers(logger)
+	users, err := PipelineUsers(logger)
 	fmt.Println("len(users)", len(users))
 	assert.Nil(t, err)
 

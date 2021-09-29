@@ -38,9 +38,9 @@ func paginatedGraphQuery(baseQuery string, respContainer pageEmptiable) (pages [
 	return
 }
 
-// pipelineAssets makes queries to Aquarius, the github repos for things in purgatory,
+// PipelineAssets makes queries to Aquarius, the github repos for things in purgatory,
 // and builds up an internal state.
-func pipelineAssets(log *log.Logger) (assets []*Asset, err error) {
+func PipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 	// Get basic data about Datatokens, and how many times they were consumed.
 	baseDatatokensQuery := `{datatokens(orderBy:name%s) {
 		symbol
@@ -190,8 +190,8 @@ func pipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 	return assets, nil
 }
 
-// pipelineUsers builds a list of users of OCEAN Protocol.
-func pipelineUsers(log *log.Logger) (users []*User, err error) {
+// PipelineUsers builds a list of users of OCEAN Protocol.
+func PipelineUsers(log *log.Logger) (users []*User, err error) {
 	// First, get a list of Accounts in Purgatory from Github.
 	purgatoryMap, err := purgAccounts()
 	if err != nil {
