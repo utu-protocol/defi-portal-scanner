@@ -39,7 +39,7 @@ func TestPostUsersToUTU(t *testing.T) {
 	}
 
 	u := readJson(t, "users.json")
-	var users []*User
+	var users []*Address
 	err = json.Unmarshal(u, &users)
 	if err != nil {
 		t.Fatal(err)
@@ -52,5 +52,5 @@ func TestPostUsersToUTU(t *testing.T) {
 		DryRun:        false,
 	}
 	utu := collector.NewUTUClient(*s)
-	PostUsersToUTU(users, assets, utu, logger)
+	PostAddressesToUTU(users, assets, utu, logger)
 }

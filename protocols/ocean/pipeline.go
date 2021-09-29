@@ -190,8 +190,8 @@ func PipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 	return assets, nil
 }
 
-// PipelineUsers builds a list of users of OCEAN Protocol.
-func PipelineUsers(log *log.Logger) (users []*User, err error) {
+// PipelineUsers builds a list of users ("addresses" to UTU Trust API) of OCEAN Protocol.
+func PipelineUsers(log *log.Logger) (addresses []*Address, err error) {
 	// First, get a list of Accounts in Purgatory from Github.
 	purgatoryMap, err := purgAccounts()
 	if err != nil {
@@ -243,14 +243,14 @@ func PipelineUsers(log *log.Logger) (users []*User, err error) {
 	}
 
 	for _, userResponse := range ur {
-		u, err := NewUserFromUserResponse(userResponse, purgatoryMap)
+		u, err := NewAddressFromUserResponse(userResponse, purgatoryMap)
 		if err != nil {
-			log.Println("Could not create a User internal class from a userResponse", err)
+			log.Println("Could not create a Address internal class from a userResponse", err)
 			return nil, err
 		}
-		users = append(users, u)
+		addresses = append(addresses, u)
 	}
-	return users, nil
+	return addresses, nil
 }
 
 type pageEmptiable interface {

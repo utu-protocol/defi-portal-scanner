@@ -142,26 +142,26 @@ func (pgr *PoolGraphQLResponse) toPool() (p *Pool, err error) {
 
 }
 
-type User struct {
+type Address struct {
 	Address               string                  `json:"address"`
 	Purgatory             bool                    `json:"purgatory"`
 	DatatokenInteractions []*DatatokenInteraction `json:"datatoken_interactions"`
 	PoolInteractions      []*PoolInteraction      `json:"pool_interactions"`
 }
 
-func (u *User) toTrustEntity() (te *collector.TrustEntity) {
-	te = collector.NewTrustEntity(fmt.Sprintf("User/Account %s", u.Address))
-	te.Ids["address"] = u.Address
-	te.Properties["purgatory"] = u.Purgatory
-	te.Type = "User"
+func (a *Address) toTrustEntity() (te *collector.TrustEntity) {
+	te = collector.NewTrustEntity(fmt.Sprintf("Address %s", a.Address))
+	te.Ids["address"] = a.Address
+	te.Properties["purgatory"] = a.Purgatory
+	te.Type = "Address"
 
 	return te
 }
 
-func (u *User) datatokenInteractionsToTrustRelationships(datatokensMap map[string]*collector.TrustEntity, log *log.Logger) (tr []*collector.TrustRelationship) {
-	for _, dti := range u.DatatokenInteractions {
+func (a *Address) datatokenInteractionsToTrustRelationships(datatokensMap map[string]*collector.TrustEntity, log *log.Logger) (tr []*collector.TrustRelationship) {
+	for _, dti := range a.DatatokenInteractions {
 		t := collector.NewTrustRelationship()
-		t.SourceCriteria = u.toTrustEntity()
+		t.SourceCriteria = a.toTrustEntity()
 		x, ok := datatokensMap[checksumAddress(dti.AddressDatatoken)]
 		if !ok {
 			log.Printf("%#v mentioned a datatoken %s but I don't know anything about it\n", dti, dti.AddressDatatoken)
@@ -176,17 +176,17 @@ func (u *User) datatokenInteractionsToTrustRelationships(datatokensMap map[strin
 	return tr
 }
 
-func (u *User) poolInteractionsToTrustRelationships(poolsMap map[string]*collector.TrustEntity, log *log.Logger) (poolInteractionTes []*collector.TrustRelationship) {
-	for _, pi := range u.PoolInteractions {
+func (a *Address) poolInteractionsToTrustRelationships(poolsMap map[string]*collector.TrustEntity, log *log.Logger) (poolInteractionTes []*collector.TrustRelationship) {
+	for _, pi := range a.PoolInteractions {
 		tr := collector.NewTrustRelationship()
-		tr.SourceCriteria = u.toTrustEntity()
+		tr.SourceCriteria = a.toTrustEntity()
 
-		// A User may have interacted with an Asset through a Datatoken. Here we
+		// An Address may have interacted with an Asset through a Datatoken. Here we
 		// check if the datatoken has pools associated with it.
 
 		poolTe, ok := poolsMap[pi.AddressPool]
 		if !ok {
-			log.Printf("%s interacted with a Pool %s but we haven't heard of it\n", u.Identifier(), pi.AddressPool)
+			log.Printf("%s interacted with a Pool %s but we haven't heard of it\n", a.Identifier(), pi.AddressPool)
 			continue
 		}
 
@@ -199,11 +199,11 @@ func (u *User) poolInteractionsToTrustRelationships(poolsMap map[string]*collect
 	return poolInteractionTes
 }
 
-func (u *User) Identifier() string {
-	return fmt.Sprintf("User %s", u.Address)
+func (a *Address) Identifier() string {
+	return fmt.Sprintf("Address %s", a.Address)
 }
 
-func NewUserFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (u *User, err error) {
+func NewAddressFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (a *Address, err error) {
 	/*
 		{
 			"id": "0x006d0f31a00e1f9c017ab039e9d0ba699433a28c",
@@ -229,7 +229,7 @@ func NewUserFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (u
 		}
 	*/
 
-	u = &User{
+	a = &Address{
 		Address:               checksumAddress(ur.ID),
 		Purgatory:             false,
 		DatatokenInteractions: []*DatatokenInteraction{},
@@ -237,7 +237,7 @@ func NewUserFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (u
 	}
 	_, ok := purgatoryMap[ur.ID]
 	if ok {
-		u.Purgatory = true
+		a.Purgatory = true
 	}
 
 	for _, x := range ur.Orders {
@@ -248,7 +248,7 @@ func NewUserFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (u
 			Timestamp:        x.Timestamp,
 			TxHash:           x.TxHash,
 		}
-		u.DatatokenInteractions = append(u.DatatokenInteractions, dti)
+		a.DatatokenInteractions = append(a.DatatokenInteractions, dti)
 	}
 	for _, x := range ur.PoolTransactions {
 		tokensInvolved := []*poolInteractionDatatokenReference{}
@@ -272,7 +272,7 @@ func NewUserFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (u
 			TokensInvolved:        tokensInvolved,
 		}
 
-		u.PoolInteractions = append(u.PoolInteractions, p)
+		a.PoolInteractions = append(a.PoolInteractions, p)
 	}
 	return
 }

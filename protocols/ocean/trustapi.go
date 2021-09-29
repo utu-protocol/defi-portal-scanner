@@ -66,8 +66,8 @@ func postAsset(asset *Asset, u *collector.UTUClient, log *log.Logger, wg *sizedw
 	}
 }
 
-func PostUsersToUTU(users []*User, assets []*Asset, u *collector.UTUClient, log *log.Logger) {
-	var usersMap = make(map[string]*collector.TrustEntity)
+func PostAddressesToUTU(addresses []*Address, assets []*Asset, u *collector.UTUClient, log *log.Logger) {
+	var addressesMap = make(map[string]*collector.TrustEntity)
 	var assetsMap = make(map[string]*collector.TrustEntity)
 	var datatokensMap = make(map[string]*collector.TrustEntity)
 	var poolsMap = make(map[string]*collector.TrustEntity)
@@ -78,7 +78,7 @@ func PostUsersToUTU(users []*User, assets []*Asset, u *collector.UTUClient, log 
 		assetsMap[x.Datatoken.Address] = x.toTrustEntity()
 		datatokensMap[x.Datatoken.Address] = x.Datatoken.toTrustEntity()
 
-		// For the pools, for each user, we need to check if we know about any
+		// For the pools, for each user/address, we need to check if we know about any
 		// of the Pools that he has interacted with (through Datatokens/Assets),
 		// and if so, get a TrustEntity for that pool. This means that poolsMap
 		// is flat - it contains no information about which Asset holds the
@@ -91,31 +91,31 @@ func PostUsersToUTU(users []*User, assets []*Asset, u *collector.UTUClient, log 
 	// This particular piece of code used to be in the postUser() block, but it
 	// was moved out here so that concurrent writes to this map (which is shared
 	// between goroutines) don't happen.
-	for _, user := range users {
+	for _, address := range addresses {
 		// Convert users to UTU Trust Entities
-		userTe := user.toTrustEntity()
-		usersMap[user.Address] = userTe
+		userTe := address.toTrustEntity()
+		addressesMap[address.Address] = userTe
 	}
 
 	// OKAY now we can start parallelized POSTING to UTU Trust API. Because we
 	// only read from the maps, not write to them, the code doesn't have to be
 	// rewritten so much.
 	wg := sizedwaitgroup.New(20)
-	for _, user := range users {
+	for _, address := range addresses {
 		wg.Add()
-		go postUser(user, usersMap, datatokensMap, poolsMap, u, log, &wg)
+		go postAddress(address, addressesMap, datatokensMap, poolsMap, u, log, &wg)
 	}
 	wg.Wait()
 
 }
 
-func postUser(user *User, usersMap, datatokensMap, poolsMap map[string]*collector.TrustEntity, u *collector.UTUClient, log *log.Logger, wg *sizedwaitgroup.SizedWaitGroup) {
+func postAddress(address *Address, usersMap, datatokensMap, poolsMap map[string]*collector.TrustEntity, u *collector.UTUClient, log *log.Logger, wg *sizedwaitgroup.SizedWaitGroup) {
 	defer wg.Done()
 
 	// Now we can create the relationships between the Users and the
 	// Datatokens.
-	dtiTes := user.datatokenInteractionsToTrustRelationships(datatokensMap, log)
-	poolTes := user.poolInteractionsToTrustRelationships(poolsMap, log)
+	dtiTes := address.datatokenInteractionsToTrustRelationships(datatokensMap, log)
+	poolTes := address.poolInteractionsToTrustRelationships(poolsMap, log)
 
 	if len(dtiTes) > 0 {
 		fmt.Println("datatokenRelationships", len(dtiTes))
@@ -124,12 +124,12 @@ func postUser(user *User, usersMap, datatokensMap, poolsMap map[string]*collecto
 		fmt.Println("poolRelationships", len(poolTes))
 	}
 
-	// POST User to UTU API
-	err := u.PostEntity(usersMap[user.Address])
+	// POST Address to UTU API
+	err := u.PostEntity(usersMap[address.Address])
 	if err != nil {
 		log.Println(err)
 	} else {
-		log.Printf("%s posted to UTU\n", user.Identifier())
+		log.Printf("%s posted to UTU\n", address.Identifier())
 	}
 
 	// POST Relationships to UTU API

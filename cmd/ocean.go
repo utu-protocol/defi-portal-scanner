@@ -37,7 +37,7 @@ func scanPush(cmd *cobra.Command, args []string) (err error) {
 	}
 	apiKey, present := os.LookupEnv("APIKEY")
 	if !present {
-		return fmt.Errorf("Please set the APIKEY environment variable (authorization to the UTU Trust API)!")
+		return fmt.Errorf("please set the APIKEY environment variable (authorization to the UTU Trust API)")
 	}
 
 	logger.Println("Pulling Assets from OCEAN Subgraph")
@@ -60,7 +60,7 @@ func scanPush(cmd *cobra.Command, args []string) (err error) {
 	logger.Printf("Posting %d Assets to UTU", len(assets))
 	ocean.PostAssetsToUTU(assets, utu, logger)
 	logger.Printf("Posting %d Users to UTU", len(users))
-	ocean.PostUsersToUTU(users, assets, utu, logger)
+	ocean.PostAddressesToUTU(users, assets, utu, logger)
 
 	return nil
 }
