@@ -47,7 +47,7 @@ type DecentralizedDataObject struct {
 	ChainID       int    `json:"chainId"`
 }
 
-func (ddo *DecentralizedDataObject) GetNameDescription() (name, description string, err error) {
+func (ddo *DecentralizedDataObject) GetNameAuthorDescription() (name, author, description string, err error) {
 	for _, obj := range ddo.Service {
 		if obj.(map[string]interface{})["type"] == "metadata" {
 			var ddomJson []byte
@@ -62,11 +62,12 @@ func (ddo *DecentralizedDataObject) GetNameDescription() (name, description stri
 			}
 
 			name = ddom.Attributes.Main.Name
+			author = ddom.Attributes.Main.Author
 			description = ddom.Attributes.AdditionalInformation.Description
-			return name, description, nil
+			return name, author, description, nil
 		}
 	}
-	return "", "", fmt.Errorf("DecentralizedDataObject.GetNameDescription() couldn't find a name and description")
+	return "", "", "", fmt.Errorf("DecentralizedDataObject.GetNameDescription() couldn't find a name and description")
 }
 
 type DDOMetadata struct {

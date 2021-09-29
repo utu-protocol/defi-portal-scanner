@@ -11,14 +11,15 @@ import (
 )
 
 type Asset struct {
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	DID         string     `json:"did"`
-	Pool        []*Pool    `json:"pool"`
-	Datatoken   *Datatoken `json:"datatoken"`
-	PublishedBy string     `json:"published_by"` // this is obtained from pool.controller
-	Purgatory   bool       `json:"purgatory"`    // when could this be null? when Aquarius does not have this in the database
-	Consumed    uint64     `json:"consumed"`     // Times this data asset was consumed
+	Name               string     `json:"name"`
+	Description        string     `json:"description"`
+	DID                string     `json:"did"`
+	Pool               []*Pool    `json:"pool"`
+	Datatoken          *Datatoken `json:"datatoken"`
+	PublishedBy        string     `json:"published_by"`         // this is obtained from Aquarius DDO
+	PublishedByAddress string     `json:"published_by_address"` // this is obtained from pool.controller
+	Purgatory          bool       `json:"purgatory"`            // when could this be null? when Aquarius does not have this in the database
+	Consumed           uint64     `json:"consumed"`             // Times this data asset was consumed
 }
 
 func (a *Asset) Identifier() string {

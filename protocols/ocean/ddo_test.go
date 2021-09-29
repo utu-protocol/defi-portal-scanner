@@ -13,10 +13,10 @@ func TestDecentralizedDataObjectGetNameDescription(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	name, description, err := ddo.GetNameDescription()
+	name, author, description, err := ddo.GetNameAuthorDescription()
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println("name, description", name, description)
+	fmt.Printf("name: %s\nauthor: %s\ndescription: %s\n", name, author, description)
 
 }
