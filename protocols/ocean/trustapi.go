@@ -3,7 +3,6 @@ package ocean
 import (
 	"fmt"
 	"log"
-	"sync"
 
 	"github.com/remeh/sizedwaitgroup"
 	"github.com/utu-crowdsale/defi-portal-scanner/collector"
@@ -12,15 +11,15 @@ import (
 // PostAssetsToUTU works like this: Post Asset, then Pool, then Datatoken, then
 // post the relationships (Asset owns Pool and Datatokens) between them all
 func PostAssetsToUTU(assets []*Asset, u *collector.UTUClient, log *log.Logger) {
-	var wg sync.WaitGroup
+	wg := sizedwaitgroup.New(20)
 	for _, asset := range assets {
-		wg.Add(1)
+		wg.Add()
 		go postAsset(asset, u, log, &wg)
 	}
 	wg.Wait()
 }
 
-func postAsset(asset *Asset, u *collector.UTUClient, log *log.Logger, wg *sync.WaitGroup) {
+func postAsset(asset *Asset, u *collector.UTUClient, log *log.Logger, wg *sizedwaitgroup.SizedWaitGroup) {
 	defer wg.Done()
 	assetTe := asset.toTrustEntity()
 	err := u.PostEntity(assetTe)
