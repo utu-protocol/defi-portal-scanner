@@ -332,7 +332,7 @@ type PoolInteraction struct {
 	ConsumePrice          string                               `json:"consumePrice"`
 	SpotPrice             string                               `json:"spotPrice"`
 	PoolSharesTransferred string                               `json:"poolSharesTransferred"` // 0 when swap, nonzero when join/exit
-	PoolSharesBalance     string                               `json:"poolSharesBalance"`     // 0 when swap, nonzero when join/exit
+	PoolSharesBalance     string                               `json:"poolSharesBalance"`     // this indicates the balance of pool shares at the time I query GraphQL. Ocean's GraphQL continuously scans Ethereum, so this value is at most 2 seconds out of date. Reference: Mihai Scarlat
 	TokensInvolved        []*poolInteractionDatatokenReference `json:"tokens_involved"`
 }
 
