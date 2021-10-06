@@ -355,7 +355,7 @@ func addressProcessor(cfg config.Schema) {
 
 // Scan scan the relationships of a new address
 func Scan(cfg config.Schema, address string) (err error) {
-	addrQueue <- address
+	addrQueue <- utils.ChecksumAddress(address)
 	return
 }
 

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/barkimedes/go-deepcopy"
+	"github.com/utu-crowdsale/defi-portal-scanner/utils"
 )
 
 func paginatedGraphQuery(baseQuery string, respContainer pageEmptiable) (pages []interface{}, err error) {
@@ -133,7 +134,7 @@ func PipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 			log.Println("Error while transforming PoolGraphQLResponse to Pool struct", err)
 			return nil, err
 		}
-		poolDatatokenAddress := checksumAddress(pGrQlResp.DatatokenAddress)
+		poolDatatokenAddress := utils.ChecksumAddress(pGrQlResp.DatatokenAddress)
 
 		pm[poolDatatokenAddress] = append(pm[poolDatatokenAddress], pool)
 	}
