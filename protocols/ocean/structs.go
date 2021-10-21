@@ -1,15 +1,80 @@
 package ocean
 
 import (
+	"fmt"
+	"log"
 	"strconv"
+	"strings"
+
+	"github.com/fatih/structs"
+	"github.com/utu-crowdsale/defi-portal-scanner/collector"
+	"github.com/utu-crowdsale/defi-portal-scanner/utils"
 )
 
 type Asset struct {
-	Pool        *Pool      `json:"pool"`
-	Datatoken   *Datatoken `json:"datatoken"`
-	PublishedBy string     `json:"published_by"` // this is obtained from pool.controller
-	Purgatory   bool       `json:"purgatory"`    // when could this be null? when Aquarius does not have this in the database
-	Consumed    uint64     `json:"consumed"`     // Times this data asset was consumed
+	Name               string     `json:"name"`
+	Description        string     `json:"description"`
+	DID                string     `json:"did"`
+	Pool               []*Pool    `json:"pool"`
+	Datatoken          *Datatoken `json:"datatoken"`
+	PublishedBy        string     `json:"published_by"`         // this is obtained from Aquarius DDO
+	PublishedByAddress string     `json:"published_by_address"` // this is obtained from pool.controller
+	Purgatory          bool       `json:"purgatory"`            // when could this be null? when Aquarius does not have this in the database
+	Consumed           uint64     `json:"consumed"`             // Times this data asset was consumed
+}
+
+func (a *Asset) Identifier() string {
+	return fmt.Sprintf("Asset %s %s", a.Datatoken.Symbol, a.Datatoken.Address)
+}
+
+func (a *Asset) toTrustEntity() (te *collector.TrustEntity) {
+	te = collector.NewTrustEntity(a.Identifier())
+
+	te.Ids["name"] = a.Datatoken.Name
+	te.Ids["symbol"] = a.Datatoken.Symbol
+	te.Ids["address_datatoken"] = a.Datatoken.Address
+
+	var poolAddresses []string
+	for _, p := range a.Pool {
+		poolAddresses = append(poolAddresses, p.Address)
+	}
+	te.Ids["addresses_pool"] = strings.Join(poolAddresses, ",")
+
+	te.Properties = structs.Map(a)
+	te.Name = a.Name
+	te.Type = "Asset"
+
+	// These are already represented as other UTU Trust Entity objects, no need
+	// to duplicate them as maps here
+	delete(te.Properties, "Pool")
+	delete(te.Properties, "Datatoken")
+	return
+}
+
+func (a *Asset) poolsToTrustEntities() (te []*collector.TrustEntity) {
+	for _, p := range a.Pool {
+		te = append(te, p.toTrustEntity())
+	}
+	return
+}
+
+func (a *Asset) poolsToTrustRelationships() (tr []*collector.TrustRelationship) {
+	for _, pool := range a.Pool {
+		r := collector.NewTrustRelationship()
+		r.SourceCriteria = a.toTrustEntity()
+		r.TargetCriteria = pool.toTrustEntity()
+		r.Type = "belongsTo"
+		tr = append(tr, r)
+	}
+	return
+}
+
+func (a *Asset) datatokenToTrustRelationship() (tr *collector.TrustRelationship) {
+	tr = collector.NewTrustRelationship()
+	tr.SourceCriteria = a.toTrustEntity()
+	tr.TargetCriteria = a.Datatoken.toTrustEntity()
+	tr.Type = "belongsTo"
+	return
 }
 
 type Pool struct {
@@ -19,6 +84,19 @@ type Pool struct {
 	OceanReserve     float64 `json:"ocean_reserve"`
 	DatatokenReserve float64 `json:"datatoken_reserve"`
 }
+
+func (p *Pool) Identifier() string {
+	return fmt.Sprintf("Pool %s", p.Address)
+}
+
+func (p *Pool) toTrustEntity() (te *collector.TrustEntity) {
+	te = collector.NewTrustEntity(p.Identifier())
+	te.Ids["address"] = p.Address
+	te.Properties = structs.Map(p)
+	te.Type = "Pool"
+	return
+}
+
 type DatatokenResponse struct {
 	Address    string
 	Name       string
@@ -28,7 +106,8 @@ type DatatokenResponse struct {
 			ID string
 		}
 	}
-	Symbol string
+	Publisher string
+	Symbol    string
 }
 type PoolGraphQLResponse struct {
 	Controller       string
@@ -54,8 +133,8 @@ func (pgr *PoolGraphQLResponse) toPool() (p *Pool, err error) {
 	}
 
 	p = &Pool{
-		Address:          checksumAddress(pgr.ID),
-		Controller:       pgr.Controller,
+		Address:          utils.ChecksumAddress(pgr.ID),
+		Controller:       utils.ChecksumAddress(pgr.Controller),
 		TotalSwapVolume:  sv,
 		OceanReserve:     or,
 		DatatokenReserve: dtr,
@@ -64,10 +143,139 @@ func (pgr *PoolGraphQLResponse) toPool() (p *Pool, err error) {
 
 }
 
-type Account struct {
-	Address     string   `json:"address"`
-	AssetsOwned []*Asset `json:"assets_owned"`
-	Purgatory   bool     `json:"purgatory"`
+type Address struct {
+	Address               string                  `json:"address"`
+	Purgatory             bool                    `json:"purgatory"`
+	DatatokenInteractions []*DatatokenInteraction `json:"datatoken_interactions"`
+	PoolInteractions      []*PoolInteraction      `json:"pool_interactions"`
+}
+
+func (a *Address) toTrustEntity() (te *collector.TrustEntity) {
+	te = collector.NewTrustEntity(fmt.Sprintf("Address %s", a.Address))
+	te.Ids["address"] = a.Address
+	te.Properties["purgatory"] = a.Purgatory
+	te.Type = "Address"
+
+	return te
+}
+
+func (a *Address) datatokenInteractionsToTrustRelationships(datatokensMap map[string]*collector.TrustEntity, log *log.Logger) (tr []*collector.TrustRelationship) {
+	for _, dti := range a.DatatokenInteractions {
+		t := collector.NewTrustRelationship()
+		t.SourceCriteria = a.toTrustEntity()
+		x, ok := datatokensMap[utils.ChecksumAddress(dti.AddressDatatoken)]
+		if !ok {
+			log.Printf("%#v mentioned a datatoken %s but I don't know anything about it\n", dti, dti.AddressDatatoken)
+			continue
+		}
+		t.TargetCriteria = x
+		t.Type = "interaction"
+		t.Properties = structs.Map(dti)
+		t.Properties["action"] = "Consumption"
+		tr = append(tr, t)
+	}
+	return tr
+}
+
+func (a *Address) poolInteractionsToTrustRelationships(poolsMap map[string]*collector.TrustEntity, log *log.Logger) (poolInteractionTes []*collector.TrustRelationship) {
+	for _, pi := range a.PoolInteractions {
+		tr := collector.NewTrustRelationship()
+		tr.SourceCriteria = a.toTrustEntity()
+
+		// An Address may have interacted with an Asset through a Datatoken. Here we
+		// check if the datatoken has pools associated with it.
+
+		poolTe, ok := poolsMap[pi.AddressPool]
+		if !ok {
+			log.Printf("%s interacted with a Pool %s but we haven't heard of it\n", a.Identifier(), pi.AddressPool)
+			continue
+		}
+
+		tr.TargetCriteria = poolTe
+		tr.Properties = structs.Map(pi)
+		tr.Properties["action"] = pi.Event
+		tr.Type = "interaction"
+		poolInteractionTes = append(poolInteractionTes, tr)
+	}
+	return poolInteractionTes
+}
+
+func (a *Address) Identifier() string {
+	return fmt.Sprintf("Address %s", a.Address)
+}
+
+func NewAddressFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (a *Address, err error) {
+	/*
+		{
+			"id": "0x006d0f31a00e1f9c017ab039e9d0ba699433a28c",
+			"orders": [
+				{
+				"amount": "1",
+				"datatokenId": {
+					"id": "0xfcb47f5781f14ed7e032bd395113b84c897aa23f",
+					"name": "Trenchant Pelican Token",
+					"symbol": "TREPEL-36"
+				},
+				"timestamp": 1629082751
+				}
+			],
+			"poolTransactions": [
+				{
+				"event": "swap",
+				"poolAddressStr": "0xa94a4ed3b3414bb2468e5c200d68e56d4ce180f9",
+				"sharesTransferAmount": "0",
+				"timestamp": 1605717888
+				},
+			]
+		}
+	*/
+
+	a = &Address{
+		Address:               utils.ChecksumAddress(ur.ID),
+		Purgatory:             false,
+		DatatokenInteractions: []*DatatokenInteraction{},
+		PoolInteractions:      []*PoolInteraction{},
+	}
+	_, ok := purgatoryMap[ur.ID]
+	if ok {
+		a.Purgatory = true
+	}
+
+	for _, x := range ur.Orders {
+		dti := &DatatokenInteraction{
+			Address:          utils.ChecksumAddress(ur.ID),
+			AddressDatatoken: utils.ChecksumAddress(x.DatatokenID.ID),
+			SymbolDatatoken:  x.DatatokenID.Symbol,
+			Timestamp:        x.Timestamp,
+			TxHash:           x.TxHash,
+		}
+		a.DatatokenInteractions = append(a.DatatokenInteractions, dti)
+	}
+	for _, x := range ur.PoolTransactions {
+		tokensInvolved := []*poolInteractionDatatokenReference{}
+		for _, ti := range x.TokensInvolved {
+			tokensInvolved = append(tokensInvolved, &poolInteractionDatatokenReference{
+				AddressDatatoken: utils.ChecksumAddress(ti.TokenAddress),
+				Type:             ti.Type,
+				Value:            ti.Value,
+			})
+		}
+		p := &PoolInteraction{
+			Address:               utils.ChecksumAddress(ur.ID),
+			AddressPool:           utils.ChecksumAddress(x.PoolAddress),
+			Event:                 x.Event,
+			Timestamp:             x.Timestamp,
+			TxHash:                x.TxHash,
+			ConsumePrice:          x.ConsumePrice,
+			SpotPrice:             x.SpotPrice,
+			PoolSharesTransferred: x.SharesTransferAmount,
+			PoolSharesBalance:     x.SharesBalance,
+			TokensInvolved:        tokensInvolved,
+		}
+
+		a.PoolInteractions = append(a.PoolInteractions, p)
+	}
+	return
 }
 
 type Datatoken struct {
@@ -75,14 +283,28 @@ type Datatoken struct {
 	Name       string `json:"name"`        // Risible Pelican Token
 	Symbol     string `json:"symbol"`      // RISPEL-91
 	OrderCount uint64 `json:"order_count"` // 1 TokenOrder is one consumption of the asset
+	Publisher  string `json:"publisher"`
 }
 
-func NewDataToken(address, name, symbol string, orderCount uint64) (dt *Datatoken) {
+func (d *Datatoken) Identifier() string {
+	return fmt.Sprintf("Datatoken %s (%s)", d.Address, d.Symbol)
+}
+
+func (d *Datatoken) toTrustEntity() (te *collector.TrustEntity) {
+	te = collector.NewTrustEntity(fmt.Sprintf("Datatoken %s", d.Address))
+	te.Ids["address"] = d.Address
+	te.Properties = structs.Map(d)
+	te.Type = "Datatoken"
+	return
+}
+
+func NewDataToken(address, name, symbol string, orderCount uint64, publisher string) (dt *Datatoken) {
 	return &Datatoken{
-		Address:    checksumAddress(address),
+		Address:    utils.ChecksumAddress(address),
 		Name:       name,
 		Symbol:     symbol,
 		OrderCount: orderCount,
+		Publisher:  publisher,
 	}
 }
 
@@ -91,5 +313,61 @@ func NewDataTokenFromDatatokenResponse(dtr DatatokenResponse) (dt *Datatoken, er
 	if err != nil {
 		return
 	}
-	return NewDataToken(dtr.Address, dtr.Name, dtr.Symbol, uint64(orderCount)), nil
+	return NewDataToken(dtr.Address, dtr.Name, dtr.Symbol, uint64(orderCount), utils.ChecksumAddress(dtr.Publisher)), nil
+}
+
+type DatatokenInteraction struct {
+	Address          string `json:"address"`
+	AddressDatatoken string `json:"address_datatoken"`
+	SymbolDatatoken  string `json:"symbol_datatoken"`
+	Timestamp        uint64 `json:"timestamp"`
+	TxHash           string `json:"txhash"`
+}
+
+type PoolInteraction struct {
+	Address               string                               `json:"address"`
+	AddressPool           string                               `json:"address_pool"`
+	Event                 string                               `json:"event"`
+	Timestamp             uint64                               `json:"timestamp"`
+	TxHash                string                               `json:"txhash"`
+	ConsumePrice          string                               `json:"consumePrice"`
+	SpotPrice             string                               `json:"spotPrice"`
+	PoolSharesTransferred string                               `json:"poolSharesTransferred"` // 0 when swap, nonzero when join/exit
+	PoolSharesBalance     string                               `json:"poolSharesBalance"`     // this indicates the balance of pool shares at the time I query GraphQL. Ocean's GraphQL continuously scans Ethereum, so this value is at most 2 seconds out of date. Reference: Mihai Scarlat
+	TokensInvolved        []*poolInteractionDatatokenReference `json:"tokens_involved"`
+}
+
+type poolInteractionDatatokenReference struct {
+	AddressDatatoken string `json:"address_datatoken"`
+	Type             string `json:"type"`
+	Value            string `json:"value"`
+}
+
+type UserResponse struct {
+	ID     string `json:"id"`
+	Orders []struct {
+		Timestamp   uint64 `json:"timestamp"`
+		Amount      string `json:"amount"`
+		TxHash      string `json:"tx"`
+		DatatokenID struct {
+			ID     string `json:"id"`
+			Name   string `json:"name"`
+			Symbol string `json:"symbol"`
+		} `json:"datatokenId"`
+	} `json:"orders"`
+	PoolTransactions []struct {
+		Event                string `json:"event"`
+		PoolAddress          string `json:"poolAddressStr"`
+		SharesTransferAmount string `json:"sharesTransferAmount"`
+		SharesBalance        string `json:"sharesBalance"`
+		Timestamp            uint64 `json:"timestamp"`
+		ConsumePrice         string `json:"consumePrice"`
+		SpotPrice            string `json:"spotPrice"`
+		TokensInvolved       []struct {
+			TokenAddress string `json:"tokenAddress"`
+			Type         string `json:"type"`
+			Value        string `json:"value"`
+		} `json:"tokens"`
+		TxHash string `json:"tx"`
+	} `json:"poolTransactions"`
 }

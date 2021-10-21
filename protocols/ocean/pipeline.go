@@ -7,20 +7,23 @@ import (
 	"strconv"
 
 	"github.com/barkimedes/go-deepcopy"
+	"github.com/utu-crowdsale/defi-portal-scanner/utils"
 )
 
 func paginatedGraphQuery(baseQuery string, respContainer pageEmptiable) (pages []interface{}, err error) {
+	pageSize := 100
 	i := 0
 	for {
 		var query string
 		if i == 0 {
-			query = fmt.Sprintf(baseQuery, ",first:1000")
+			pagingConstraint := fmt.Sprintf(",first:%d", pageSize)
+			query = fmt.Sprintf(baseQuery, pagingConstraint)
 		} else {
-			s := fmt.Sprintf(",first:1000,skip:%d", i)
-			query = fmt.Sprintf(baseQuery, s)
+			pagingConstraint := fmt.Sprintf(",first:%d,skip:%d", pageSize, i)
+			query = fmt.Sprintf(baseQuery, pagingConstraint)
 		}
 
-		err = graphQuery(query, respContainer)
+		err = graphQuery(query, respContainer, false)
 		if err != nil {
 			log.Println("Error while querying GraphQL for datatokens", err)
 			return
@@ -31,19 +34,20 @@ func paginatedGraphQuery(baseQuery string, respContainer pageEmptiable) (pages [
 
 		page := deepcopy.MustAnything(respContainer)
 		pages = append(pages, page)
-		i += 1000
+		i += pageSize
 	}
 	return
 }
 
-// pipeline makes queries to Aquarius, the github repos for things in purgatory,
+// PipelineAssets makes queries to Aquarius, the github repos for things in purgatory,
 // and builds up an internal state.
-func pipeline(log *log.Logger) (err error) {
+func PipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 	// Get basic data about Datatokens, and how many times they were consumed.
 	baseDatatokensQuery := `{datatokens(orderBy:name%s) {
 		symbol
 		name
 		address
+		publisher
 		orders{
 		  consumer{
 			id
@@ -55,7 +59,7 @@ func pipeline(log *log.Logger) (err error) {
 	pages, err := paginatedGraphQuery(baseDatatokensQuery, new(DatatokenResponsePage))
 	if err != nil {
 		log.Println("Error connecting to GraphQL", err)
-		return err
+		return nil, err
 	}
 	/*
 		"datatokens": [
@@ -95,7 +99,7 @@ func pipeline(log *log.Logger) (err error) {
 		dt, err := NewDataTokenFromDatatokenResponse(datatokenResponse)
 		if err != nil {
 			log.Println("Could not create a DataToken internal class from a datatokenResponse", err)
-			return err
+			return nil, err
 		}
 		datatokens = append(datatokens, dt)
 	}
@@ -123,26 +127,26 @@ func pipeline(log *log.Logger) (err error) {
 		page := p.(*PoolResponsePage)
 		pr = append(pr, page.Flatten()...)
 	}
-	pm := make(map[string]*Pool)
+	pm := make(map[string][]*Pool)
 	for _, pGrQlResp := range pr {
 		pool, err := pGrQlResp.toPool()
 		if err != nil {
 			log.Println("Error while transforming PoolGraphQLResponse to Pool struct", err)
-			return err
+			return nil, err
 		}
+		poolDatatokenAddress := utils.ChecksumAddress(pGrQlResp.DatatokenAddress)
 
-		pm[checksumAddress(pGrQlResp.DatatokenAddress)] = pool
+		pm[poolDatatokenAddress] = append(pm[poolDatatokenAddress], pool)
 	}
 
 	// We have Pools and Datatokens, so we can now construct Assets. A Datatoken
 	// may not have a Pool, or even a DDO associated with it. But we're only
 	// interested in Datatokens with Pools and DDOs.
-	var assets []*Asset
 	for _, dt := range datatokens {
 		// If Datatoken does not have corresponding Pool, immediately skip it (don't bother Aquarius)
 		pool := pm[dt.Address]
 		if pool == nil {
-			log.Printf("%s does not have a corresponding Pool, skipping", dt.Address)
+			// log.Printf("%s does not have a corresponding Pool, skipping", dt.Address)
 			continue
 		}
 
@@ -153,28 +157,101 @@ func pipeline(log *log.Logger) (err error) {
 			log.Printf("%s is not known by Aquarius, skipping: %s", dt.Address, err)
 			continue
 		}
+		// ddo := DecentralizedDataObject{} // mock Aquarius out since it isn't working atm
+		// ddo.IsInPurgatory = "false"
 
 		purgatoryStatus, err = strconv.ParseBool(ddo.IsInPurgatory)
 		if err != nil {
-			return err
+			return nil, err
 		}
+
+		name, author, desc, err := ddo.GetNameAuthorDescription()
+		if err != nil {
+			log.Printf("Asset %s: unable to retrieve name and description from Aquarius: %s", ddo.ID, err)
+		}
+
 		asset := &Asset{
-			Pool:        pool,
-			Datatoken:   dt,
-			PublishedBy: pool.Controller,
-			Purgatory:   purgatoryStatus,
-			Consumed:    dt.OrderCount,
+			Name:               name,
+			Description:        desc,
+			DID:                ddo.ID,
+			Pool:               pool,
+			Datatoken:          dt,
+			PublishedBy:        author,
+			PublishedByAddress: dt.Publisher,
+			Purgatory:          purgatoryStatus,
+			Consumed:           dt.OrderCount,
 		}
 		assets = append(assets, asset)
 	}
 
-	j, err := json.MarshalIndent(assets, "", "\t")
+	_, err = json.MarshalIndent(assets, "", "\t")
 	if err != nil {
 		return
 	}
-	fmt.Println(string(j))
-	fmt.Println("len(assets)", len(assets))
-	return
+	return assets, nil
+}
+
+// PipelineUsers builds a list of users ("addresses" to UTU Trust API) of OCEAN Protocol.
+func PipelineUsers(log *log.Logger) (addresses []*Address, err error) {
+	// First, get a list of Accounts in Purgatory from Github.
+	purgatoryMap, err := purgAccounts()
+	if err != nil {
+		log.Println("Error getting list of accounts in purgatory", err)
+		return
+	}
+
+	// Then, get info about Users (here we use the term interchangeably with
+	// Accounts) from GraphQL
+	usersQuery := `{users(orderBy:id%s){
+		  id,
+		  orders {
+			amount
+			timestamp
+			tx
+			datatokenId {
+			  id
+			  symbol
+			  name
+			}
+		  }
+		  poolTransactions{
+			poolAddressStr
+			event
+			timestamp
+			sharesTransferAmount
+			sharesBalance
+			consumePrice
+			spotPrice
+			tx
+			tokens{
+				tokenAddress
+				value
+				type
+			}
+		  }
+		}
+	  }`
+	pages, err := paginatedGraphQuery(usersQuery, new(UserResponsePage))
+	if err != nil {
+		log.Println("Error connecting to GraphQL", err)
+		return nil, err
+	}
+
+	var ur []UserResponse
+	for _, p := range pages {
+		page := p.(*UserResponsePage)
+		ur = append(ur, page.Flatten()...)
+	}
+
+	for _, userResponse := range ur {
+		u, err := NewAddressFromUserResponse(userResponse, purgatoryMap)
+		if err != nil {
+			log.Println("Could not create a Address internal class from a userResponse", err)
+			return nil, err
+		}
+		addresses = append(addresses, u)
+	}
+	return addresses, nil
 }
 
 type pageEmptiable interface {
@@ -203,4 +280,16 @@ func (pr *PoolResponsePage) IsEmpty() bool {
 
 func (pr *PoolResponsePage) Flatten() []PoolGraphQLResponse {
 	return pr.Pools
+}
+
+type UserResponsePage struct {
+	Users []UserResponse
+}
+
+func (dt *UserResponsePage) IsEmpty() bool {
+	return len(dt.Users) == 0
+}
+
+func (dt *UserResponsePage) Flatten() []UserResponse {
+	return dt.Users
 }

@@ -25,10 +25,9 @@ type EthereumSchema struct {
 
 // TrustEngineSchema the trust engine client configuration
 type TrustEngineSchema struct {
-	URL       string `mapstructure:"url"`
-	AuthHeder string `mapstructure:"client_id_header"`
-	ClientID  string `mapstructure:"client_id"`
-	DryRun    bool   `mapstructure:"dry_run"`
+	URL           string `mapstructure:"url"`
+	Authorization string `mapstructure:"authorization"`
+	DryRun        bool   `mapstructure:"dry_run"`
 }
 
 // ServerSchema the schema for server

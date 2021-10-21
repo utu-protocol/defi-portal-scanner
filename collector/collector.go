@@ -46,7 +46,7 @@ func criteria(address string) (entity *TrustEntity, isNew bool) {
 		isNew = true
 	}
 	// create the entity to be used as criteria
-	entity = NewTrustEntity()
+	entity = NewTrustEntity("")
 	entity.Type = typ
 	entity.Ids = map[string]string{"address": label}
 	return
@@ -158,19 +158,17 @@ func ParseLog(vLog *types.Log, client *ethclient.Client) (cs TrustAPIChangeSet, 
 		// now add missing stuff
 		if sIsNew {
 			// TODO copying here is ugly
-			entity := NewTrustEntity()
+			entity := NewTrustEntity(senderAddress)
 			entity.Ids = s.Ids
 			entity.Type = s.Type
-			entity.Name = senderAddress
 			entity.Image = fmt.Sprintf("https://via.placeholder.com/150/FFFF00/000000/?text=%s", senderAddress)
 			cs.AddEntity(entity)
 		}
 		if rIsNew {
 			// TODO copying here is ugly
-			entity := NewTrustEntity()
+			entity := NewTrustEntity(recipientAddress)
 			entity.Ids = r.Ids
 			entity.Type = r.Type
-			entity.Name = recipientAddress
 			entity.Image = fmt.Sprintf("https://via.placeholder.com/150/FFFF00/000000/?text=%s", recipientAddress)
 			cs.AddEntity(entity)
 		}
@@ -265,8 +263,7 @@ func Start(cfg config.Schema) (err error) {
 		protocolID := strcase.ToCamel(p.Name)
 		log.Infof("protocol %s added with %d addresses", p.Name, len(p.Filters))
 		//
-		e := NewTrustEntity()
-		e.Name = p.Name
+		e := NewTrustEntity(p.Name)
 		e.Type = TypeDefiProtocol
 		e.Image = p.IconURL
 		e.Ids = map[string]string{"address": protocolID}
@@ -358,7 +355,7 @@ func addressProcessor(cfg config.Schema) {
 
 // Scan scan the relationships of a new address
 func Scan(cfg config.Schema, address string) (err error) {
-	addrQueue <- address
+	addrQueue <- utils.ChecksumAddress(address)
 	return
 }
 

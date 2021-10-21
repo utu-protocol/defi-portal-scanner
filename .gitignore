@@ -1,4 +1,5 @@
 .vscode
+.authkey.sh
 dist
 private
 release

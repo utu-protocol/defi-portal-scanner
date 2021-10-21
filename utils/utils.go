@@ -3,6 +3,8 @@ package utils
 import (
 	"encoding/json"
 	"io/ioutil"
+
+	geth "github.com/ethereum/go-ethereum/common"
 )
 
 // WriteJSON write data to a json file
@@ -23,4 +25,8 @@ func ReadJSON(file string, target interface{}) (err error) {
 	}
 	err = json.Unmarshal(bin, target)
 	return
+}
+
+func ChecksumAddress(address string) string {
+	return geth.HexToAddress(address).String()
 }

@@ -15,15 +15,17 @@ import (
 const OCEAN_ERC20_ADDRESS = "0x967da4048cd07ab37855c090aaf366e4ce1b9f48"
 const OCEAN_SUBGRAPH_MAINNET = "https://subgraph.mainnet.oceanprotocol.com/subgraphs/name/oceanprotocol/ocean-subgraph"
 
-const AQUARIUS_URL_DDO = "https://multiaqua.oceanprotocol.com/api/v1/aquarius/assets/ddo/"
-const PURGATORY_ASSETS = "https://github.com/oceanprotocol/list-purgatory/blob/main/list-assets.json"
-const PURGATORY_ACCOUNTS = "https://github.com/oceanprotocol/list-purgatory/blob/main/list-assets.json"
+const AQUARIUS_URL_DDO = "https://aquarius.oceanprotocol.com/api/v1/aquarius/assets/ddo/"
+const PURGATORY_ASSETS = "https://raw.githubusercontent.com/oceanprotocol/list-purgatory/main/list-assets.json"
+const PURGATORY_ACCOUNTS = "https://raw.githubusercontent.com/oceanprotocol/list-purgatory/main/list-assets.json"
 
 // graphQuery gets most blockchain data from Ocean's GraphQL instance.
-func graphQuery(query string, respContainer interface{}) (err error) {
+func graphQuery(query string, respContainer interface{}, debug bool) (err error) {
 	// create a client (safe to share across requests)
 	client := graphql.NewClient(OCEAN_SUBGRAPH_MAINNET)
-	// client.Log = func(s string) { log.Println(s) }
+	if debug {
+		client.Log = func(s string) { log.Println(s) }
+	}
 	req := graphql.NewRequest(query)
 
 	// define a Context for the request
@@ -35,6 +37,18 @@ func graphQuery(query string, respContainer interface{}) (err error) {
 		return
 	}
 	return nil
+}
+
+// aquariusError is needed to tell the upper layer more nuanced errors, like
+// whether it was 404 not found or 503 service unavailable
+type aquariusError struct {
+	RequestedDID string
+	StatusCode   int
+	Body         []byte
+}
+
+func (ae *aquariusError) Error() string {
+	return fmt.Sprintf("Aquarius error while requesting did %s: %d %s", ae.RequestedDID, ae.StatusCode, ae.Body)
 }
 
 // aquariusQuery gets additional data like purgatory status and a dataset
@@ -51,7 +65,11 @@ func aquariusQuery(datatokenAddress string) (ddo *DecentralizedDataObject, err e
 		return
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Ocean Aquarius did not return a OK to our request for did %s. Status Code: %s, Body: %s", did, resp.Status, body)
+		return nil, &aquariusError{
+			RequestedDID: did,
+			StatusCode:   resp.StatusCode,
+			Body:         body,
+		}
 	}
 
 	ddo = new(DecentralizedDataObject)
@@ -84,8 +102,12 @@ func purgAssets() (pa []PurgatoryAsset, err error) {
 	return
 }
 
-// purgAccounts gets a list of assets in purgatory from a fixed URL on Github and parses the JSON.
-func purgAccounts() (pa []PurgatoryAccount, err error) {
+// purgAccounts gets a list of assets in purgatory from a fixed URL on Github
+// and parses the JSON. Then it transforms the list into a map[string] for easy
+// lookup
+func purgAccounts() (purgatoryMap map[string]string, err error) {
+	var pa []PurgatoryAccount
+	purgatoryMap = make(map[string]string)
 	resp, err := http.Get(PURGATORY_ACCOUNTS)
 	if err != nil {
 		return
@@ -97,5 +119,12 @@ func purgAccounts() (pa []PurgatoryAccount, err error) {
 	}
 
 	err = json.Unmarshal(body, &pa)
-	return
+	if err != nil {
+		return
+	}
+
+	for _, a := range pa {
+		purgatoryMap[a.Address] = a.Reason
+	}
+	return purgatoryMap, nil
 }
