@@ -36,6 +36,7 @@ func topic2Addr(l *types.Log, index int) string {
 }
 
 func criteria(address string) (entity *TrustEntity, isNew bool) {
+	address = utils.ChecksumAddress(address)
 	// cache lookup
 	label, typ, found := cacheGet(address)
 	if !found {
@@ -279,7 +280,7 @@ func Start(cfg config.Schema) (err error) {
 			// push to the address cache
 			cachePush(a, protocolID, TypeDefiProtocol)
 			// add to the list of filter for ethereum
-			addresFilters = append(addresFilters, common.HexToAddress(a))
+			addresFilters = append(addresFilters, common.HexToAddress(a)) // OK, looks like they are converted internally to a checksummed address already.
 			log.Debugf("registered protocol %s filter %s at %s", p.Name, protocolID, a)
 		}
 	}
@@ -334,6 +335,8 @@ func addressProcessor(cfg config.Schema) {
 	client := NewEtherscanClient(cfg.Ethereum.EtherscanAPIToken)
 	for {
 		addr, more := <-addrQueue
+		addr = utils.ChecksumAddress(addr) // Ensure this is always a checksum address
+
 		log.Info("received request to scan address ", addr)
 		if !more {
 			log.Info("changeset queue is closed, exiting")
@@ -361,6 +364,8 @@ func Scan(cfg config.Schema, address string) (err error) {
 
 // actually process the addresses
 func scan(client *EtherscanClient, processedAddress map[string]bool, a string, level, maxLevel int) {
+	a = utils.ChecksumAddress(a) // Ensure address is always checksummed.
+
 	// don't go too deep
 	if level > maxLevel {
 		return
