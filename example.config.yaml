@@ -1,0 +1,12 @@
+log_output_file: private/output.json
+defi_sources_file: private/protocols.json
+db_folder: private/db
+eth:
+    node_wss_url: <wss node>
+    etherscan_api_token: <api token> 
+# services:
+#     glitchtip_dsn: <glitchtip dsn>
+utu_trust_api:
+    url: https://gateway.ututrust.com
+    client_id: <UTU client id> 
+    dry_run: false
