@@ -3,6 +3,8 @@ package collector
 import (
 	"strings"
 	"sync"
+
+	"github.com/utu-crowdsale/defi-portal-scanner/utils"
 )
 
 var (
@@ -20,7 +22,7 @@ func cachePush(key, value, typ string) {
 	addressM.Lock()
 	defer addressM.Unlock()
 
-	k := strings.TrimSpace(strings.ToLower(key))
+	k := utils.ChecksumAddress(strings.TrimSpace(key))
 	addressCache[k] = value
 	// only cache the type defiProtocol
 	if typ == TypeDefiProtocol {
@@ -32,7 +34,7 @@ func cacheGet(key string) (v string, t string, found bool) {
 	addressM.RLock()
 	defer addressM.RUnlock()
 
-	k := strings.TrimSpace(strings.ToLower(key))
+	k := utils.ChecksumAddress(strings.TrimSpace(key))
 	v, found = addressCache[k]
 	if !found {
 		return
