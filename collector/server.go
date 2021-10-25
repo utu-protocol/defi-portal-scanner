@@ -33,7 +33,7 @@ func Serve(cfg config.Schema) (err error) {
 	})
 
 	e.POST("/subscribe/:address", func(c echo.Context) (err error) {
-		address := c.Param("address")
+		address := NewAddressFromString(c.Param("address"))
 		err = Scan(cfg, address)
 		if err != nil {
 			log.Error(err)
