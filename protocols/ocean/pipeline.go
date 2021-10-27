@@ -134,7 +134,7 @@ func PipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 			log.Println("Error while transforming PoolGraphQLResponse to Pool struct", err)
 			return nil, err
 		}
-		poolDatatokenAddress := utils.ChecksumAddress(pGrQlResp.DatatokenAddress)
+		poolDatatokenAddress := pGrQlResp.DatatokenAddress
 
 		pm[poolDatatokenAddress] = append(pm[poolDatatokenAddress], pool)
 	}

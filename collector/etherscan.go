@@ -5,9 +5,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
-
-	"github.com/utu-crowdsale/defi-portal-scanner/utils"
 )
 
 // EtherscanReply a reply from etherscan
@@ -17,44 +16,53 @@ type EtherscanReply struct {
 	Result  []EthTransaction `json:"result,omitempty"`
 }
 
-// ChecksumAddress is a custom type that guarantees that the Ethereum address (a string) is checksummed
-type ChecksumAddress string
+// Address is a custom type that guarantees that the Ethereum address (a string)
+// is lowercased/checksummed
+type Address string
 
-func NewAddressFromString(s string) ChecksumAddress {
-	return ChecksumAddress(utils.ChecksumAddress(s))
+func NewAddressFromString(s string) Address {
+	return Address(strings.ToLower(s))
 }
 
-func (a *ChecksumAddress) UnmarshalJSON(data []byte) error {
+func (a *Address) UnmarshalJSON(data []byte) error {
 	var addr string
 	if err := json.Unmarshal(data, &addr); err != nil {
 		return err
 	}
 
-	addr = utils.ChecksumAddress(addr)
-	*a = ChecksumAddress(addr)
+	// this class was originally written to ensure that Addresses were
+	// checksummed everywhere. Now we ensure that it is lowercase everywhere,
+	// but the following line is kept, commented out to explain the context of
+	// why this class exists
+
+	// addr = utils.ChecksumAddress(addr)
+
+	// We decided for lowercase everywhere
+	addr = strings.ToLower(addr)
+	*a = Address(addr)
 	return nil
 }
 
 // EthTransaction a transaction from etherescan
 type EthTransaction struct {
-	BlockNumber       string          `json:"blockNumber,omitempty"`
-	TimeStamp         string          `json:"timeStamp,omitempty"`
-	Hash              string          `json:"hash,omitempty"`
-	Nonce             string          `json:"nonce,omitempty"`
-	BlockHash         string          `json:"blockHash,omitempty"`
-	TransactionIndex  string          `json:"transactionIndex,omitempty"`
-	From              ChecksumAddress `json:"from"`
-	To                ChecksumAddress `json:"to"`
-	Value             string          `json:"value,omitempty"`
-	Gas               string          `json:"gas,omitempty"`
-	GasPrice          string          `json:"gasPrice,omitempty"`
-	IsError           string          `json:"isError,omitempty"`
-	TxReceiptStatus   string          `json:"txreceipt_status,omitempty"`
-	Input             string          `json:"input,omitempty"`
-	ContractAddress   string          `json:"contractAddress,omitempty"`
-	CumulativeGasUsed string          `json:"cumulativeGasUsed,omitempty"`
-	GasUsed           string          `json:"gasUsed,omitempty"`
-	Confirmations     string          `json:"confirmations,omitempty"`
+	BlockNumber       string  `json:"blockNumber,omitempty"`
+	TimeStamp         string  `json:"timeStamp,omitempty"`
+	Hash              string  `json:"hash,omitempty"`
+	Nonce             string  `json:"nonce,omitempty"`
+	BlockHash         string  `json:"blockHash,omitempty"`
+	TransactionIndex  string  `json:"transactionIndex,omitempty"`
+	From              Address `json:"from"`
+	To                Address `json:"to"`
+	Value             string  `json:"value,omitempty"`
+	Gas               string  `json:"gas,omitempty"`
+	GasPrice          string  `json:"gasPrice,omitempty"`
+	IsError           string  `json:"isError,omitempty"`
+	TxReceiptStatus   string  `json:"txreceipt_status,omitempty"`
+	Input             string  `json:"input,omitempty"`
+	ContractAddress   string  `json:"contractAddress,omitempty"`
+	CumulativeGasUsed string  `json:"cumulativeGasUsed,omitempty"`
+	GasUsed           string  `json:"gasUsed,omitempty"`
+	Confirmations     string  `json:"confirmations,omitempty"`
 }
 
 // GetTime return the tx time
