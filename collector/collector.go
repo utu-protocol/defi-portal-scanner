@@ -23,19 +23,19 @@ const (
 
 var (
 	csQueue   chan *TrustAPIChangeSet
-	addrQueue chan ChecksumAddress
+	addrQueue chan Address
 )
 
 func init() {
 	csQueue = make(chan *TrustAPIChangeSet)
-	addrQueue = make(chan ChecksumAddress)
+	addrQueue = make(chan Address)
 }
 
 func topic2Addr(l *types.Log, index int) string {
 	return common.BytesToAddress(l.Topics[index].Bytes()).Hex()
 }
 
-func criteria(address ChecksumAddress) (entity *TrustEntity, isNew bool) {
+func criteria(address Address) (entity *TrustEntity, isNew bool) {
 	// cache lookup
 	label, typ, found := cacheGet(string(address))
 	if !found {
@@ -98,7 +98,7 @@ func ParseLog(vLog *types.Log, client *ethclient.Client) (cs TrustAPIChangeSet, 
 		}
 
 		// case sender is a defi-ptocol
-		c, _ := criteria(ChecksumAddress(contractAddress)) // since contractAddress comes from ethereum common libraries.Hex(), we can assume it's safe and directly cast to Address type
+		c, _ := criteria(Address(contractAddress)) // since contractAddress comes from ethereum common libraries.Hex(), we can assume it's safe and directly cast to Address type
 		s, sIsNew := criteria(NewAddressFromString(senderAddress))
 		r, rIsNew := criteria(NewAddressFromString(recipientAddress))
 
@@ -329,7 +329,7 @@ func Start(cfg config.Schema) (err error) {
 }
 
 func addressProcessor(cfg config.Schema) {
-	cache := make(map[ChecksumAddress]bool)
+	cache := make(map[Address]bool)
 	// get the etherscan client
 	client := NewEtherscanClient(cfg.Ethereum.EtherscanAPIToken)
 	for {
@@ -348,19 +348,19 @@ func addressProcessor(cfg config.Schema) {
 		currentLevel := 0
 		maxLevel := 1
 		// now we go through all transactions an we search for:
-		processedAddress := make(map[ChecksumAddress]bool)
+		processedAddress := make(map[Address]bool)
 		scan(client, processedAddress, addr, currentLevel, maxLevel)
 	}
 }
 
 // Scan scan the relationships of a new address
-func Scan(cfg config.Schema, address ChecksumAddress) (err error) {
+func Scan(cfg config.Schema, address Address) (err error) {
 	addrQueue <- address
 	return
 }
 
 // actually process the addresses
-func scan(client *EtherscanClient, processedAddress map[ChecksumAddress]bool, a ChecksumAddress, level, maxLevel int) {
+func scan(client *EtherscanClient, processedAddress map[Address]bool, a Address, level, maxLevel int) {
 	// don't go too deep
 	if level > maxLevel {
 		return
@@ -388,7 +388,7 @@ func scan(client *EtherscanClient, processedAddress map[ChecksumAddress]bool, a 
 		csQueue <- NewChangeset(sc)
 	}
 	// process the relationships
-	var src, dst ChecksumAddress
+	var src, dst Address
 	var cs *TrustAPIChangeSet
 	for _, y := range txs {
 		src, dst = y.From, y.To
