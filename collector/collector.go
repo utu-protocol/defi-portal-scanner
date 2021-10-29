@@ -332,6 +332,7 @@ func addressProcessor(cfg config.Schema) {
 	cache := make(map[Address]bool)
 	// get the etherscan client
 	client := NewEtherscanClient(cfg.Ethereum.EtherscanAPIToken)
+	client.PageSize = 10000
 	for {
 		addr, more := <-addrQueue
 		log.Info("received request to scan address ", addr)
@@ -371,7 +372,7 @@ func scan(client *EtherscanClient, processedAddress map[Address]bool, a Address,
 	}
 	processedAddress[a] = true
 	// retrieve the address transactions
-	txs, err := client.GetTransactions(string(a))
+	txs, err := client.GetTransactions(a)
 	if err != nil {
 		log.Error("error retrieving transactions: ", err)
 		return
