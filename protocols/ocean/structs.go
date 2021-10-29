@@ -8,7 +8,6 @@ import (
 
 	"github.com/fatih/structs"
 	"github.com/utu-crowdsale/defi-portal-scanner/collector"
-	"github.com/utu-crowdsale/defi-portal-scanner/utils"
 )
 
 type Asset struct {

@@ -8,8 +8,13 @@ import (
 )
 
 // WriteJSON write data to a json file
-func WriteJSON(file string, data interface{}) (err error) {
-	bin, err := json.Marshal(data)
+func WriteJSON(file string, pretty bool, data interface{}) (err error) {
+	var bin []byte
+	if pretty {
+		bin, err = json.MarshalIndent(data, "", "\t")
+	} else {
+		bin, err = json.Marshal(data)
+	}
 	if err != nil {
 		return
 	}

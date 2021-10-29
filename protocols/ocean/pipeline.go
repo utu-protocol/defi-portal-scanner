@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/barkimedes/go-deepcopy"
-	"github.com/utu-crowdsale/defi-portal-scanner/utils"
 )
 
 func paginatedGraphQuery(baseQuery string, respContainer pageEmptiable) (pages []interface{}, err error) {
@@ -214,7 +213,7 @@ func PipelineUsers(log *log.Logger) (addresses []*Address, err error) {
 			  name
 			}
 		  }
-		  poolTransactions{
+		  poolTransactions(first:1000,orderBy:timestamp,orderDirection:desc){
 			poolAddressStr
 			event
 			timestamp
