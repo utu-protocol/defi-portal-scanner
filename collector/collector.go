@@ -246,7 +246,7 @@ func Start(cfg config.Schema) (err error) {
 	// now get the etherescan api
 	// escli := etherscan.New(etherscan.Mainnet, cfg.EtherscanAPIToken)
 	// read the list of monitored protocols
-	var protocols *config.ProtocolsFormat
+	var protocols *ProtocolsFormat
 	err = utils.ReadJSON(cfg.DefiSourcesFile, &protocols)
 	if err != nil {
 		log.Errorf("cannot retrieve the defi protocols from %s: %v", cfg.DefiSourcesFile, err)

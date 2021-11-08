@@ -8,7 +8,6 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/utu-crowdsale/defi-portal-scanner/config"
 )
 
 var (
@@ -88,13 +87,13 @@ func queue(e EthEvent) {
 
 // EthEvent an contract interaction
 type EthEvent struct {
-	BlockNumber     uint64          `json:"block_number,omitempty"`
-	BlockTime       time.Time       `json:"block_time,omitempty"`
-	Context         config.Protocol `json:"actor,omitempty"`
-	Action          string          `json:"action,omitempty"`
-	TransactionHash string          `json:"tx_hash,omitempty"`
-	Recipients      []string        `json:"recipients,omitempty"`
-	Senders         []string        `json:"senders,omitempty"`
+	BlockNumber     uint64    `json:"block_number,omitempty"`
+	BlockTime       time.Time `json:"block_time,omitempty"`
+	Context         Protocol  `json:"actor,omitempty"`
+	Action          string    `json:"action,omitempty"`
+	TransactionHash string    `json:"tx_hash,omitempty"`
+	Recipients      []string  `json:"recipients,omitempty"`
+	Senders         []string  `json:"senders,omitempty"`
 }
 
 // LogEvent print an event on stdout
