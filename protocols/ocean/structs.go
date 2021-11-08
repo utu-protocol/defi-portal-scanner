@@ -8,7 +8,6 @@ import (
 
 	"github.com/fatih/structs"
 	"github.com/utu-crowdsale/defi-portal-scanner/collector"
-	"github.com/utu-crowdsale/defi-portal-scanner/utils"
 )
 
 type Asset struct {
@@ -133,8 +132,8 @@ func (pgr *PoolGraphQLResponse) toPool() (p *Pool, err error) {
 	}
 
 	p = &Pool{
-		Address:          utils.ChecksumAddress(pgr.ID),
-		Controller:       utils.ChecksumAddress(pgr.Controller),
+		Address:          pgr.ID,
+		Controller:       pgr.Controller,
 		TotalSwapVolume:  sv,
 		OceanReserve:     or,
 		DatatokenReserve: dtr,
@@ -163,7 +162,7 @@ func (a *Address) datatokenInteractionsToTrustRelationships(datatokensMap map[st
 	for _, dti := range a.DatatokenInteractions {
 		t := collector.NewTrustRelationship()
 		t.SourceCriteria = a.toTrustEntity()
-		x, ok := datatokensMap[utils.ChecksumAddress(dti.AddressDatatoken)]
+		x, ok := datatokensMap[dti.AddressDatatoken]
 		if !ok {
 			log.Printf("%#v mentioned a datatoken %s but I don't know anything about it\n", dti, dti.AddressDatatoken)
 			continue
@@ -231,7 +230,7 @@ func NewAddressFromUserResponse(ur UserResponse, purgatoryMap map[string]string)
 	*/
 
 	a = &Address{
-		Address:               utils.ChecksumAddress(ur.ID),
+		Address:               ur.ID,
 		Purgatory:             false,
 		DatatokenInteractions: []*DatatokenInteraction{},
 		PoolInteractions:      []*PoolInteraction{},
@@ -243,8 +242,8 @@ func NewAddressFromUserResponse(ur UserResponse, purgatoryMap map[string]string)
 
 	for _, x := range ur.Orders {
 		dti := &DatatokenInteraction{
-			Address:          utils.ChecksumAddress(ur.ID),
-			AddressDatatoken: utils.ChecksumAddress(x.DatatokenID.ID),
+			Address:          ur.ID,
+			AddressDatatoken: x.DatatokenID.ID,
 			SymbolDatatoken:  x.DatatokenID.Symbol,
 			Timestamp:        x.Timestamp,
 			TxHash:           x.TxHash,
@@ -255,14 +254,14 @@ func NewAddressFromUserResponse(ur UserResponse, purgatoryMap map[string]string)
 		tokensInvolved := []*poolInteractionDatatokenReference{}
 		for _, ti := range x.TokensInvolved {
 			tokensInvolved = append(tokensInvolved, &poolInteractionDatatokenReference{
-				AddressDatatoken: utils.ChecksumAddress(ti.TokenAddress),
+				AddressDatatoken: ti.TokenAddress,
 				Type:             ti.Type,
 				Value:            ti.Value,
 			})
 		}
 		p := &PoolInteraction{
-			Address:               utils.ChecksumAddress(ur.ID),
-			AddressPool:           utils.ChecksumAddress(x.PoolAddress),
+			Address:               ur.ID,
+			AddressPool:           x.PoolAddress,
 			Event:                 x.Event,
 			Timestamp:             x.Timestamp,
 			TxHash:                x.TxHash,
@@ -300,7 +299,7 @@ func (d *Datatoken) toTrustEntity() (te *collector.TrustEntity) {
 
 func NewDataToken(address, name, symbol string, orderCount uint64, publisher string) (dt *Datatoken) {
 	return &Datatoken{
-		Address:    utils.ChecksumAddress(address),
+		Address:    address,
 		Name:       name,
 		Symbol:     symbol,
 		OrderCount: orderCount,
@@ -313,7 +312,7 @@ func NewDataTokenFromDatatokenResponse(dtr DatatokenResponse) (dt *Datatoken, er
 	if err != nil {
 		return
 	}
-	return NewDataToken(dtr.Address, dtr.Name, dtr.Symbol, uint64(orderCount), utils.ChecksumAddress(dtr.Publisher)), nil
+	return NewDataToken(dtr.Address, dtr.Name, dtr.Symbol, uint64(orderCount), dtr.Publisher), nil
 }
 
 type DatatokenInteraction struct {

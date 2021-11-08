@@ -23,27 +23,26 @@ const (
 
 var (
 	csQueue   chan *TrustAPIChangeSet
-	addrQueue chan string
+	addrQueue chan Address
 )
 
 func init() {
 	csQueue = make(chan *TrustAPIChangeSet)
-	addrQueue = make(chan string)
+	addrQueue = make(chan Address)
 }
 
 func topic2Addr(l *types.Log, index int) string {
 	return common.BytesToAddress(l.Topics[index].Bytes()).Hex()
 }
 
-func criteria(address string) (entity *TrustEntity, isNew bool) {
-	address = utils.ChecksumAddress(address)
+func criteria(address Address) (entity *TrustEntity, isNew bool) {
 	// cache lookup
-	label, typ, found := cacheGet(address)
+	label, typ, found := cacheGet(string(address))
 	if !found {
 		// here is a user, we store 0x123, address, address
 		typ = TypeAddress
-		label = address
-		cachePush(address, label, typ)
+		label = string(address)
+		cachePush(string(address), label, typ)
 		isNew = true
 	}
 	// create the entity to be used as criteria
@@ -99,9 +98,9 @@ func ParseLog(vLog *types.Log, client *ethclient.Client) (cs TrustAPIChangeSet, 
 		}
 
 		// case sender is a defi-ptocol
-		c, _ := criteria(contractAddress)
-		s, sIsNew := criteria(senderAddress)
-		r, rIsNew := criteria(recipientAddress)
+		c, _ := criteria(Address(contractAddress)) // since contractAddress comes from ethereum common libraries.Hex(), we can assume it's safe and directly cast to Address type
+		s, sIsNew := criteria(NewAddressFromString(senderAddress))
+		r, rIsNew := criteria(NewAddressFromString(recipientAddress))
 
 		if s.Type == r.Type {
 			// if they are both defi-portal then skip
@@ -195,7 +194,7 @@ func changesetsProcessor(cfg config.TrustEngineSchema) {
 		// if dryrun just print the outcome
 		if cfg.DryRun {
 			v, _ := json.MarshalIndent(cs, "", "  ")
-			log.Infof("%s", v)
+			fmt.Println(string(v))
 			continue
 		}
 
@@ -330,13 +329,12 @@ func Start(cfg config.Schema) (err error) {
 }
 
 func addressProcessor(cfg config.Schema) {
-	cache := make(map[string]bool)
+	cache := make(map[Address]bool)
 	// get the etherscan client
 	client := NewEtherscanClient(cfg.Ethereum.EtherscanAPIToken)
+	client.PageSize = 10000
 	for {
 		addr, more := <-addrQueue
-		addr = utils.ChecksumAddress(addr) // Ensure this is always a checksum address
-
 		log.Info("received request to scan address ", addr)
 		if !more {
 			log.Info("changeset queue is closed, exiting")
@@ -351,21 +349,19 @@ func addressProcessor(cfg config.Schema) {
 		currentLevel := 0
 		maxLevel := 1
 		// now we go through all transactions an we search for:
-		processedAddress := make(map[string]bool)
+		processedAddress := make(map[Address]bool)
 		scan(client, processedAddress, addr, currentLevel, maxLevel)
 	}
 }
 
 // Scan scan the relationships of a new address
-func Scan(cfg config.Schema, address string) (err error) {
-	addrQueue <- utils.ChecksumAddress(address)
+func Scan(cfg config.Schema, address Address) (err error) {
+	addrQueue <- address
 	return
 }
 
 // actually process the addresses
-func scan(client *EtherscanClient, processedAddress map[string]bool, a string, level, maxLevel int) {
-	a = utils.ChecksumAddress(a) // Ensure address is always checksummed.
-
+func scan(client *EtherscanClient, processedAddress map[Address]bool, a Address, level, maxLevel int) {
 	// don't go too deep
 	if level > maxLevel {
 		return
@@ -389,11 +385,11 @@ func scan(client *EtherscanClient, processedAddress map[string]bool, a string, l
 	}
 	// create the changeset queue and start the processor
 	if isNew {
-		sc.Name = a
+		sc.Name = string(a)
 		csQueue <- NewChangeset(sc)
 	}
 	// process the relationships
-	var src, dst string
+	var src, dst Address
 	var cs *TrustAPIChangeSet
 	for _, y := range txs {
 		src, dst = y.From, y.To
@@ -408,7 +404,7 @@ func scan(client *EtherscanClient, processedAddress map[string]bool, a string, l
 		dc, isNew := criteria(dst)
 		cs = NewChangeset()
 		if isNew {
-			dc.Name = dst
+			dc.Name = string(dst)
 			cs.AddEntity(dc)
 		}
 		//

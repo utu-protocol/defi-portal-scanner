@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/machinebox/graphql"
+	"github.com/utu-crowdsale/defi-portal-scanner/utils"
 )
 
 const OCEAN_ERC20_ADDRESS = "0x967da4048cd07ab37855c090aaf366e4ce1b9f48"
@@ -54,7 +55,9 @@ func (ae *aquariusError) Error() string {
 // aquariusQuery gets additional data like purgatory status and a dataset
 // description from Aquarius. The argument datatokenAddress must be the 0x...
 // Ethereum address, which will be stripped of its 0x prefix to produce the DID.
+// IMPORTANT: The DID is made from a checksummed Ethereum address, not lowercase!
 func aquariusQuery(datatokenAddress string) (ddo *DecentralizedDataObject, err error) {
+	datatokenAddress = utils.ChecksumAddress(datatokenAddress)
 	did := strings.TrimLeft(datatokenAddress, "0x")
 	resp, err := http.Get(fmt.Sprintf("%sdid:op:%s", AQUARIUS_URL_DDO, did)) // https://multiaqua.oceanprotocol.com/api/v1/aquarius/assets/ddo/did:op:0f5A4C51Dd71C7FB8D5D61e5B56C996681e4302F
 	if err != nil {
