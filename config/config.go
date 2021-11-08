@@ -34,8 +34,6 @@ type Schema struct {
 	Ethereum           EthereumSchema    `mapstructure:"eth"`
 	UTUTrustAPI        TrustEngineSchema `mapstructure:"utu_trust_api"`
 	DefiSourcesFile    string            `mapstructure:"defi_sources_file"`
-	TrackTopics        []string          `mapstructure:"track_topics"`
-	DbFolder           string            `mapstructure:"db_folder"`
 	LogOutputFile      string            `mapstructure:"log_output_file"`
 	Services           ServicesSchema    `mapstructure:"services"`
 	Server             ServerSchema      `mapstructure:"server"`
