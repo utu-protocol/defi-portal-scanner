@@ -144,6 +144,7 @@ func (pgr *PoolGraphQLResponse) toPool() (p *Pool, err error) {
 
 type Address struct {
 	Address               string                  `json:"address"`
+	PlaceholderImage      string                  `json:"placeholder_image"`
 	Purgatory             bool                    `json:"purgatory"`
 	DatatokenInteractions []*DatatokenInteraction `json:"datatoken_interactions"`
 	PoolInteractions      []*PoolInteraction      `json:"pool_interactions"`
@@ -152,6 +153,7 @@ type Address struct {
 func (a *Address) toTrustEntity() (te *collector.TrustEntity) {
 	te = collector.NewTrustEntity(fmt.Sprintf("Address %s", a.Address))
 	te.Ids["address"] = a.Address
+	te.Image = a.PlaceholderImage
 	te.Properties["purgatory"] = a.Purgatory
 	te.Type = "Address"
 
@@ -232,6 +234,7 @@ func NewAddressFromUserResponse(ur UserResponse, purgatoryMap map[string]string)
 	a = &Address{
 		Address:               ur.ID,
 		Purgatory:             false,
+		PlaceholderImage:      fmt.Sprintf("https://via.placeholder.com/150/FFFF00/000000/?text=%s", ur.ID),
 		DatatokenInteractions: []*DatatokenInteraction{},
 		PoolInteractions:      []*PoolInteraction{},
 	}
