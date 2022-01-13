@@ -246,14 +246,14 @@ func Start(cfg config.Schema) (err error) {
 	// now get the etherescan api
 	// escli := etherscan.New(etherscan.Mainnet, cfg.EtherscanAPIToken)
 	// read the list of monitored protocols
-	var protocols []Protocol
+	var protocols *ProtocolsFormat
 	err = utils.ReadJSON(cfg.DefiSourcesFile, &protocols)
 	if err != nil {
 		log.Errorf("cannot retrieve the defi protocols from %s: %v", cfg.DefiSourcesFile, err)
 		return
 	}
 
-	for _, p := range protocols {
+	for _, p := range protocols.DefiProtocols {
 		// if there are no filters skip
 		if len(p.Filters) == 0 {
 			log.Warnf("skip protocol %s: empty filters", p.Name)
@@ -332,6 +332,7 @@ func addressProcessor(cfg config.Schema) {
 	cache := make(map[Address]bool)
 	// get the etherscan client
 	client := NewEtherscanClient(cfg.Ethereum.EtherscanAPIToken)
+	client.PageSize = 10000
 	for {
 		addr, more := <-addrQueue
 		log.Info("received request to scan address ", addr)
@@ -371,7 +372,7 @@ func scan(client *EtherscanClient, processedAddress map[Address]bool, a Address,
 	}
 	processedAddress[a] = true
 	// retrieve the address transactions
-	txs, err := client.GetTransactions(string(a))
+	txs, err := client.GetTransactions(a)
 	if err != nil {
 		log.Error("error retrieving transactions: ", err)
 		return

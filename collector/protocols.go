@@ -1,10 +1,16 @@
 package collector
 
-import (
-	"github.com/iancoleman/strcase"
-)
+import "github.com/iancoleman/strcase"
 
-// Protocol is a source token
+// ProtocolsFormat is the format of the protocols.json
+type ProtocolsFormat struct {
+	OceanPools    []Address  `json:"ocean_pools,omitempty"`
+	DefiProtocols []Protocol `json:"defi_protocols,omitempty"`
+}
+
+// Protocol is a Defi Protocol/Project e.g. Uniswap, Balancer, Sushiswap, whose
+// pools (in the Filters field) we listen to for Events, so we can update UTU Trust
+// API
 type Protocol struct {
 	Name        string            `json:"name,omitempty"`
 	Description string            `json:"description,omitempty"`

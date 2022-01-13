@@ -2,6 +2,7 @@ package collector
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -43,6 +44,16 @@ func (a *Address) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type NoMoreTransactionsError struct {
+	address Address
+	page    int
+	offset  int
+}
+
+func (n *NoMoreTransactionsError) Error() string {
+	return fmt.Sprintf("No more transactions for %s: page %d offset %d", n.address, n.page, n.offset)
+}
+
 // EthTransaction a transaction from etherescan
 type EthTransaction struct {
 	BlockNumber       string  `json:"blockNumber,omitempty"`
@@ -80,6 +91,7 @@ type EtherscanClient struct {
 	APIEndpoint string
 	APIToken    string
 	HTTPCli     *http.Client
+	PageSize    int
 }
 
 // NewEtherscanClient create a new utu client
@@ -90,27 +102,46 @@ func NewEtherscanClient(apiToken string) *EtherscanClient {
 		HTTPCli: &http.Client{
 			Timeout: time.Second * 10,
 		},
+		PageSize: 100,
 	}
 }
 
-// GetTransactions get the list of transactions
-func (c EtherscanClient) GetTransactions(address string) (txs []EthTransaction, err error) {
-	// create request
+// GetTransactions gets normal (not internal) Transactions from Etherscan.
+// Etherscan will only return 10000 records maximum, regardless of how many
+// pages you request/size of those pages.
+func (c EtherscanClient) GetTransactions(address Address) (txs []EthTransaction, err error) {
+	var pagedTxs []EthTransaction
+	page := 1
+	for err == nil {
+		pagedTxs, err = c.getPagedTransactions(address, page, c.PageSize)
+		txs = append(txs, pagedTxs...)
+		page++
+	}
+	_, ok := err.(*NoMoreTransactionsError)
+	if ok {
+		return txs, nil
+	}
+	return
+
+}
+
+// getPagedTransactions execute GET query and parse possible responses
+func (c EtherscanClient) getPagedTransactions(address Address, page, offset int) (txs []EthTransaction, err error) {
+
 	req, err := http.NewRequest("GET", c.APIEndpoint, nil)
 	if err != nil {
 		return
 	}
-	// build parameters
+
 	q := req.URL.Query()
 	q.Add("module", "account")
 	q.Add("action", "txlist")
-	q.Add("address", address)
+	q.Add("address", string(address))
 	q.Add("apikey", c.APIToken)
-	//TODO make it parametrized
-	q.Add("page", "1")     // which page
-	q.Add("offset", "100") // how many items
+	q.Add("page", fmt.Sprint(page))     // which page
+	q.Add("offset", fmt.Sprint(offset)) // how many items
 	req.URL.RawQuery = q.Encode()
-	// execute the request
+
 	res, err := c.HTTPCli.Do(req)
 	if err != nil {
 		return
@@ -119,11 +150,23 @@ func (c EtherscanClient) GetTransactions(address string) (txs []EthTransaction, 
 	if err != nil {
 		return
 	}
-	//log.Debugf("etherscan reply: %s", data)
+
 	var r EtherscanReply
-	// now parse the result
 	err = json.Unmarshal(data, &r)
 	txs = r.Result
+
+	// if no more transactions are found, r.status will also be 0
+	if r.Message == "No transactions found" && len(txs) == 0 {
+		return txs, &NoMoreTransactionsError{
+			address: address,
+			page:    page,
+			offset:  offset,
+		}
+	}
+
+	if r.Status == "0" {
+		return txs, fmt.Errorf(r.Message)
+	}
 	return
 
 }

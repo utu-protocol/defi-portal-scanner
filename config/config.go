@@ -11,12 +11,6 @@ type ServicesSchema struct {
 	GlitchtipDsn string `mapstructure:"glitchtip_dsn"`
 }
 
-// ProtocolSchema configuration for protocols
-type ProtocolSchema struct {
-	Name             string `mapstructure:"name,omitempty"`
-	TheGraphEndpoint string `mapstructure:"the_graph_endpoint,omitempty"`
-}
-
 // EthereumSchema config for ethereum related resources
 type EthereumSchema struct {
 	WssURL            string `mapstructure:"node_wss_url"`
@@ -40,11 +34,8 @@ type Schema struct {
 	Ethereum           EthereumSchema    `mapstructure:"eth"`
 	UTUTrustAPI        TrustEngineSchema `mapstructure:"utu_trust_api"`
 	DefiSourcesFile    string            `mapstructure:"defi_sources_file"`
-	TrackTopics        []string          `mapstructure:"track_topics"`
-	DbFolder           string            `mapstructure:"db_folder"`
 	LogOutputFile      string            `mapstructure:"log_output_file"`
 	Services           ServicesSchema    `mapstructure:"services"`
-	Protocols          []ProtocolSchema  `mapstructure:"protocols"`
 	Server             ServerSchema      `mapstructure:"server"`
 	RuntimeVersion     string            `mapstructure:"-"`
 	RuntimeEnvironment string            `mapstructure:"-"`
