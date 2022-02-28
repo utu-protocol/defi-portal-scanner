@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/iancoleman/strcase"
 	log "github.com/sirupsen/logrus"
 	"github.com/utu-crowdsale/defi-portal-scanner/config"
 	"github.com/utu-crowdsale/defi-portal-scanner/utils"
@@ -229,7 +228,7 @@ func Ready(cfg config.Schema) {
 
 // Start the service
 func Start(cfg config.Schema) (err error) {
-	log.Info("starting collector for protocols at", cfg.DefiSourcesFile)
+	log.Info("starting collector for protocols at ", cfg.DefiSourcesFile)
 	client, err := ethclient.Dial(cfg.Ethereum.WssURL)
 	if err != nil {
 		return
@@ -260,7 +259,7 @@ func Start(cfg config.Schema) (err error) {
 			continue
 		}
 		// build the entity
-		protocolID := strcase.ToCamel(p.Name)
+		protocolID := p.MainAddress
 		log.Infof("protocol %s added with %d addresses", p.Name, len(p.Filters))
 		//
 		e := NewTrustEntity(p.Name)

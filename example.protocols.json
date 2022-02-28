@@ -6,6 +6,7 @@
             "url": "https://info.uniswap.org",
             "category": "DEX",
             "icon": "",
+            "main_address": "0xf164fc0ec4e93095b804a4795bbe1e041497b92a",
             "filters": {
                 "0xf164fc0ec4e93095b804a4795bbe1e041497b92a": "Uniswap V2: Router",
                 "0x2a1530c4c41db0b0b2bb646cb5eb1a67b7158667": "Uniswap: DAI",
@@ -65,6 +66,7 @@
             "url": "https://compound.finance",
             "category": "Lending",
             "icon": "https://etherscan.io/images/defi/compound.svg?v20.8.3",
+            "main_address": "0x1055be4bf7338c7606d9efdcf80593f180ba043e",
             "filters": {
                 "0xc00e94cb662c3520282e6f5717214004a7f26888": "Compound: COMP Token",
                 "0x39aa39c021dfbae8fac545936693ac917d5e7563": "Compound USD Coin",
@@ -99,6 +101,7 @@
             "icon": "https://etherscan.io/images/defi/maker.svg?v20.8.3",
             "url": "https://makerdao.com",
             "category": "Lending",
+            "main_address": "0x4678f0a6958e4d2bc4f1baf7bc52e8f3564f3fe4",
             "filters": {
                 "0x6b175474e89094c44da98b954eedeac495271d0f": "Dai Stablecoin",
                 "0x39755357759ce0d7f32dc8dc45414cca409ae24e": "Eth2Dai: Old Contract",
@@ -133,6 +136,7 @@
             "url": "https://aave.com",
             "icon": "https://etherscan.io/images/defi/aave.svg?v20.8.3",
             "category": "Lending",
+            "main_address": "0x4965f6fa20fe9728decf5165016fc338a5a85abf",
             "filters": {
                 "0x80fb784b7ed66730e8b1dbd9820afd29931aab03": "Aave: LEND Token",
                 "0x398ec7346dcd622edc5ae82352f02be94c62d119": "Aave: Lending Pool",
@@ -168,6 +172,7 @@
             "url": "https://curve.fi",
             "category": "DEX",
             "icon": "https://etherscan.io/images/defi/curvefi.png?v20.8.3",
+            "main_address": "0x7002b727ef8f5571cb5f9d70d13dbeeb4dfae9d1",
             "filters": {
                 "0xd533a949740bb3306d119cc777fa900ba034cd52": "Curve.fi: CRV Token",
                 "0xdf5e0e81dff6faf3a7e52ba697820c5e32d806a8": "Curve.fi: yCrv Token",
@@ -217,6 +222,7 @@
             "url": "https://yearn.finance",
             "category": "Assets",
             "icon": "https://etherscan.io/images/defi/yearn_finance.png?v20.8.3",
+            "main_address": "0x93a62da5a14c80f265dabc077fcee437b1a0efde",
             "filters": {
                 "0xa069e33994dcc24928d99f4bbeda83aaef00b5f3": "yearn: Strategy Curve YCRV",
                 "0x93a62da5a14c80f265dabc077fcee437b1a0efde": "yearn: Treasury Vault",
@@ -246,6 +252,7 @@
             "url": "https://pools.balancer.exchange",
             "icon": "https://etherscan.io/images/defi/balancer.png?v20.8.3",
             "category": "DEX",
+            "main_address": "0x6317c5e82a06e1d8bf200d21f4510ac2c038ac81",
             "filters": {
                 "0x3e66b66fd1d0b02fda6c811da9e0547970db2f21": "Balancer: Exchange Proxy 2",
                 "0x6317c5e82a06e1d8bf200d21f4510ac2c038ac81": "Balancer: Exchange Proxy",
@@ -280,6 +287,7 @@
             "url": "https://synthetix.io",
             "icon": "https://etherscan.io/images/defi/synthetix.png?v20.8.3",
             "category": "Derivatives",
+            "main_address": "0xeb3107117fead7de89cd14d463d340a2e6917769",
             "filters": {
                 "0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f": "Synthetix: Proxy SNX Token",
                 "0xac1ed4fabbd5204e02950d68b6fc8c446ac95362": "Synthetix: Oracle",
@@ -305,6 +313,7 @@
             "url": "https://bancor.network",
             "icon": "https://etherscan.io/images/defi/bancor.png?v20.8.3",
             "category": "DEX",
+            "main_address": "0x9e8f95969ab023c36541bc089e25d50c6fcf0811",
             "filters": {
                 "0x9e8f95969ab023c36541bc089e25d50c6fcf0811": "Bancor: Converter 5",
                 "0x92a497f0bcdeaa5345f6aa4a3357ee3cbe2e7226": "Bancor: Converter 110",
@@ -339,6 +348,7 @@
             "url": "https://renproject.io",
             "icon": "https://etherscan.io/images/defi/ren.png?v20.8.3",
             "category": "Assets",
+            "main_address": "0x2d7b6c95afeffa50c068d50f89c5c0014e054f0a",
             "filters": {
                 "0x9992e9341e496be5bc8f424dfc1f78a7388d3a58": "Ren: ChaosDEX",
                 "0x2d7b6c95afeffa50c068d50f89c5c0014e054f0a": "Ren: Darknode Registry Proxy",
