@@ -18,6 +18,7 @@ type Protocol struct {
 	URL         string            `json:"url,omitempty"`
 	Filters     map[string]string `json:"filters,omitempty"`
 	Category    string            `json:"category,omitempty"`
+	MainAddress string            `json:"main_address,omitempty"`
 }
 
 // ReverseFilters reverse the filters key and value
