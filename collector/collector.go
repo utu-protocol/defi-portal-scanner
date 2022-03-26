@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -259,7 +260,7 @@ func Start(cfg config.Schema) (err error) {
 			continue
 		}
 		// build the entity
-		protocolID := p.MainAddress
+		protocolID := strings.ToLower(p.MainAddress)
 		log.Infof("protocol %s added with %d addresses", p.Name, len(p.Filters))
 		//
 		e := NewTrustEntity(p.Name)
