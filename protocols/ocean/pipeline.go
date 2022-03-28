@@ -164,7 +164,7 @@ func PipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 			return nil, err
 		}
 
-		name, author, desc, err := ddo.GetNameAuthorDescription()
+		name, author, desc, tags, categories, err := ddo.GetNameAuthorMetadata()
 		if err != nil {
 			log.Printf("Asset %s: unable to retrieve name and description from Aquarius: %s", ddo.ID, err)
 		}
@@ -179,6 +179,8 @@ func PipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 			PublishedByAddress: dt.Publisher,
 			Purgatory:          purgatoryStatus,
 			Consumed:           dt.OrderCount,
+			Tags:               tags,
+			Categories:         categories,
 		}
 		assets = append(assets, asset)
 	}
