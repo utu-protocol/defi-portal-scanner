@@ -18,6 +18,5 @@ func TestDecentralizedDataObjectGetNameDescription(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Print("#######")
 	fmt.Printf("name: %s\nauthor: %s\ndescription: %s\ntags: %s\ncategories: %s\n", name, author, description, strings.Join(tags, ", "), strings.Join(categories, ", "))
 }
