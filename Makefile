@@ -66,7 +66,7 @@ docker: docker-build
 
 docker-build:
 	@echo copy resources
-	docker build --build-arg DOCKER_TAG='$(GIT_DESCR)' -t $(DOCKER_IMAGE)  .
+	docker build --platform linux/amd64 --build-arg DOCKER_TAG='$(GIT_DESCR)' -t $(DOCKER_IMAGE)  .
 	@echo done
 
 docker-login:

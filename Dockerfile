@@ -1,7 +1,7 @@
 ############################
 # STEP 1 build executable binary
 ############################
-FROM golang:alpine AS builder
+FROM golang:1.18.0 AS builder
 ARG DOCKER_TAG=0.0.0
 # checkout the project 
 WORKDIR /builder
@@ -13,7 +13,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /defi-portal-scanner -ldfl
 ############################
 # STEP 2 build a small image
 ############################
-FROM golang:alpine
+FROM golang:1.18.0
 # Copy our static executable + data
 COPY --from=builder /defi-portal-scanner /
 # Copy config file 
