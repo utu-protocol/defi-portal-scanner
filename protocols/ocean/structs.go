@@ -20,6 +20,8 @@ type Asset struct {
 	PublishedByAddress string     `json:"published_by_address"` // this is obtained from pool.controller
 	Purgatory          bool       `json:"purgatory"`            // when could this be null? when Aquarius does not have this in the database
 	Consumed           uint64     `json:"consumed"`             // Times this data asset was consumed
+	Tags               []string   `json:"tags,omitempty"`
+	Categories         []string   `json:"categories,omitempty"`
 }
 
 func (a *Asset) Identifier() string {

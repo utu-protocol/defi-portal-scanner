@@ -3,6 +3,7 @@ package ocean
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -13,10 +14,9 @@ func TestDecentralizedDataObjectGetNameDescription(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	name, author, description, err := ddo.GetNameAuthorDescription()
+	name, author, description, tags, categories, err := ddo.GetNameAuthorMetadata()
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("name: %s\nauthor: %s\ndescription: %s\n", name, author, description)
-
+	fmt.Printf("name: %s\nauthor: %s\ndescription: %s\ntags: %s\ncategories: %s\n", name, author, description, strings.Join(tags, ", "), strings.Join(categories, ", "))
 }
