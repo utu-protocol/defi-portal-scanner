@@ -33,6 +33,7 @@ func (a *Asset) toTrustEntity() (te *collector.TrustEntity) {
 
 	te.Ids["name"] = a.Datatoken.Name
 	te.Ids["symbol"] = a.Datatoken.Symbol
+	te.Ids["uuid"] = "dt_" + a.Datatoken.Address
 	te.Ids["address_datatoken"] = a.Datatoken.Address
 
 	var poolAddresses []string
