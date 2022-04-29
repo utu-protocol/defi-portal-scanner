@@ -2,7 +2,9 @@ package wallet
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"math"
 	"math/big"
 	"strings"
 	"time"
@@ -39,11 +41,10 @@ type Wallet struct {
 }
 
 type Balance struct {
-	Address  string `json:"address"`
-	Balance  string `json:"balance"`
-	Decimals int    `json:"decimals"`
-	Name     string `json:"name"`
-	Symbol   string `json:"symbol"`
+	Address string `json:"address"`
+	Balance string `json:"balance"`
+	Name    string `json:"name"`
+	Symbol  string `json:"symbol"`
 }
 
 var (
@@ -70,12 +71,12 @@ func Scan(cfg config.Schema, address string, tokens []string, ch chan<- *Wallet)
 			continue
 		}
 		tokenData := tokenDataByAddress[token.ContractAddress]
+
 		balance := Balance{
-			Address:  tokenData.Address,
-			Balance:  tokenBalance.String(),
-			Decimals: tokenData.Decimals,
-			Name:     tokenData.Name,
-			Symbol:   tokenData.Symbol,
+			Address: tokenData.Address,
+			Balance: formatBalance(tokenBalance, tokenData.Decimals),
+			Name:    tokenData.Name,
+			Symbol:  tokenData.Symbol,
 		}
 		balances = append(balances, balance)
 	}
@@ -85,6 +86,18 @@ func Scan(cfg config.Schema, address string, tokens []string, ch chan<- *Wallet)
 			Balances: balances,
 		}
 		ch <- wallet
+	} else {
+		log.Infof("No token balances found for %s", address)
+	}
+}
+
+func formatBalance(balance *big.Int, decimals int) string {
+	dec := big.NewInt(int64(math.Pow(10, float64(decimals))))
+	integral, modulo := big.NewInt(0).DivMod(balance, dec, big.NewInt(0))
+	if modulo.BitLen() == 0 {
+		return integral.String()
+	} else {
+		return fmt.Sprintf("%s.%s", integral.String(), modulo.String())
 	}
 }
 
@@ -98,7 +111,7 @@ func defineAddresses(tokens []string) (addresses interface{}) {
 		log.Info("Scanning token balances for given addresses")
 	} else if len(contractAddresses) > 0 {
 		addresses = contractAddresses
-		log.Info("Scanning token balances for given addresses")
+		log.Info("Scanning token balances for default addresses")
 	} else {
 		addresses = "DEFAULT_TOKENS"
 	}
