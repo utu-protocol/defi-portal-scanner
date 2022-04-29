@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"fmt"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -26,7 +25,7 @@ func init() {
 
 func BalanceCollectorReady(cfg config.Schema) {
 	go balanceReqProcessor(cfg)
-	go walletProcessor(cfg)
+	go walletProcessor(cfg.UTUTrustAPI)
 }
 
 func ScanTokensBalances(cfg config.Schema, address string, tokens []string) {
@@ -48,7 +47,8 @@ func balanceReqProcessor(cfg config.Schema) {
 	}
 }
 
-func walletProcessor(cfg config.Schema) {
+func walletProcessor(cfg config.TrustEngineSchema) {
+	utuCli := NewUTUClient(cfg)
 	for {
 		wallet, more := <-walletsChan
 		log.Infof("received wallet data for %v", wallet.Address)
@@ -56,6 +56,25 @@ func walletProcessor(cfg config.Schema) {
 			log.Info("no more wallet data")
 			break
 		}
-		fmt.Println(*wallet)
+		for _, balance := range wallet.Balances {
+			trustRelationship := toTrustRelationship(wallet, &balance)
+			if err := utuCli.PostRelationship(trustRelationship); err != nil {
+				log.Error("error posting relationship:", err)
+			}
+		}
 	}
+}
+
+func toTrustRelationship(wallet *wallet.Wallet, balance *wallet.Balance) *TrustRelationship {
+	r := NewTrustRelationship()
+	r.Type = "erc20_balance"
+	r.SourceCriteria = NewTrustEntity(wallet.Address)
+	r.SourceCriteria.Ids["address"] = wallet.Address
+	r.SourceCriteria.Type = "wallet"
+	r.TargetCriteria = NewTrustEntity(balance.Symbol)
+	r.TargetCriteria.Ids["address"] = balance.Address
+	r.TargetCriteria.Type = "erc20"
+	r.TargetCriteria.Name = balance.Symbol
+	r.Properties["balance"] = balance.Balance
+	return r
 }
