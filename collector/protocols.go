@@ -1,10 +1,13 @@
 package collector
 
-import "github.com/iancoleman/strcase"
+import (
+	"github.com/iancoleman/strcase"
+	"github.com/utu-crowdsale/defi-portal-scanner/config"
+)
 
 // ProtocolsFormat is the format of the protocols.json
 type ProtocolsFormat struct {
-	OceanPools    []Address  `json:"ocean_pools,omitempty"`
+	OceanPools    []config.Address  `json:"ocean_pools,omitempty"`
 	DefiProtocols []Protocol `json:"defi_protocols,omitempty"`
 }
 

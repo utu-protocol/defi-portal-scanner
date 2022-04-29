@@ -3,3 +3,4 @@
 dist
 private
 release
+.DS_Store
