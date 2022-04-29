@@ -71,6 +71,7 @@ func listen(cmd *cobra.Command, args []string) {
 	}
 
 	collector.Ready(settings)
+	collector.BalanceCollectorReady(settings)
 	wallet.Ready(settings)
 	// synchronize services
 	var wg sync.WaitGroup

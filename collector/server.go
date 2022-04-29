@@ -8,7 +8,6 @@ import (
 	"github.com/labstack/echo/middleware"
 	log "github.com/sirupsen/logrus"
 	"github.com/utu-crowdsale/defi-portal-scanner/config"
-	"github.com/utu-crowdsale/defi-portal-scanner/wallet"
 )
 
 // Serve - serve the web interface
@@ -35,22 +34,18 @@ func Serve(cfg config.Schema) (err error) {
 	})
 
 	e.POST("/subscribe/:address", func(c echo.Context) (err error) {
-		// _ := NewAddressFromString(c.Param("address"))
-		// err = Scan(cfg, address)
-		// if err != nil {
-		// 	log.Error(err)
-		// 	return c.JSON(http.StatusTeapot, map[string]string{})
-		// }
+		address := NewAddressFromString(c.Param("address"))
+		err = Scan(cfg, address)
+		if err != nil {
+			log.Error(err)
+			return c.JSON(http.StatusTeapot, map[string]string{})
+		}
 		tokensParam := c.QueryParam("tokens")
 		var tokens []string
 		if len(tokensParam) > 0 {
 			tokens = strings.Split(tokensParam, ",")
 		}
-		wallet.ScanTokensBalances(cfg, c.Param("address"), tokens)
-		if err != nil {
-			log.Error(err)
-			return c.JSON(http.StatusTeapot, map[string]string{})
-		}
+		ScanTokensBalances(cfg, c.Param("address"), tokens)
 		return c.JSON(http.StatusOK, map[string]string{})
 	})
 	err = e.Start(cfg.Server.ListenAddress)

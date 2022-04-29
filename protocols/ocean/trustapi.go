@@ -146,11 +146,3 @@ func postAddress(address *Address, usersMap, datatokensMap, poolsMap map[string]
 		}
 	}
 }
-
-func PostBalancesToUTU(assets []*Asset, u *collector.UTUClient, log *log.Logger) {
-
-}
-
-func postBalance(asset *Asset, u *collector.UTUClient, log *log.Logger, wg *sizedwaitgroup.SizedWaitGroup) {
-
-}

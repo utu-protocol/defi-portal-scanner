@@ -2,7 +2,6 @@ package wallet
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"math/big"
 	"strings"
@@ -47,84 +46,63 @@ type Balance struct {
 	Symbol   string `json:"symbol"`
 }
 
-type balanceRequest struct {
-	address string
-	tokens  interface{}
-}
-
 var (
-	tokenDataByAddress   map[string]token
-	contractAddresses    []string
-	balancesRequestQueue chan *balanceRequest
+	tokenDataByAddress map[string]token
+	contractAddresses  []string
 )
 
-func init() {
-	balancesRequestQueue = make(chan *balanceRequest)
-}
-
 func Ready(cfg config.Schema) {
-	go scan(cfg)
+	loadTokensData(cfg)
 }
 
-func ScanTokensBalances(cfg config.Schema, address string, tokens []string) {
-	loadTokensData(cfg)
-	var addresses interface{}
+func Scan(cfg config.Schema, address string, tokens []string, ch chan<- *Wallet) {
+	addresses := defineAddresses(tokens)
+	alchemyResponse, err := getBalances(cfg, address, addresses)
+	if err != nil {
+		log.Error("Couldn't fetch token balances for %s", address, err)
+		return
+	}
+	balances := make([]Balance, 0)
+	for _, token := range alchemyResponse.Result.TokenBalances {
+		balanceHex := common.FromHex(token.TokenBalance)
+		tokenBalance := new(big.Int).SetBytes(balanceHex)
+		if token.Error != nil || tokenBalance.BitLen() == 0 {
+			continue
+		}
+		tokenData := tokenDataByAddress[token.ContractAddress]
+		balance := Balance{
+			Address:  tokenData.Address,
+			Balance:  tokenBalance.String(),
+			Decimals: tokenData.Decimals,
+			Name:     tokenData.Name,
+			Symbol:   tokenData.Symbol,
+		}
+		balances = append(balances, balance)
+	}
+	if len(balances) > 0 {
+		wallet := &Wallet{
+			Address:  address,
+			Balances: balances,
+		}
+		ch <- wallet
+	}
+}
+
+func defineAddresses(tokens []string) (addresses interface{}) {
 	if len(tokens) > 0 {
 		addressesLowerCase := make([]string, 0)
 		for _, addr := range tokens {
 			addressesLowerCase = append(addressesLowerCase, strings.ToLower(addr))
 		}
 		addresses = addressesLowerCase
+		log.Info("Scanning token balances for given addresses")
 	} else if len(contractAddresses) > 0 {
 		addresses = contractAddresses
+		log.Info("Scanning token balances for given addresses")
 	} else {
 		addresses = "DEFAULT_TOKENS"
 	}
-	balancesRequestQueue <- &balanceRequest{
-		address: strings.ToLower(address),
-		tokens:  addresses,
-	}
-}
-
-func scan(cfg config.Schema) {
-	for {
-		req, more := <-balancesRequestQueue
-		log.Infof("received request to scan token balances for %v", req.address)
-		if !more {
-			log.Info("no more requests to scan balances for")
-			break
-		}
-		alchemyResponse, err := getBalances(cfg, req.address, req.tokens)
-		if err != nil {
-			log.Error("Couldn't fetch token balances for %s", req.address, err)
-			return
-		}
-		fmt.Println(*alchemyResponse)
-		balances := make([]Balance, 0)
-		for _, token := range alchemyResponse.Result.TokenBalances {
-			balanceHex := common.FromHex(token.TokenBalance)
-			tokenBalance := new(big.Int).SetBytes(balanceHex)
-			if token.Error != nil || tokenBalance.BitLen() == 0 {
-				continue
-			}
-			tokenData := tokenDataByAddress[token.ContractAddress]
-			balance := Balance{
-				Address:  tokenData.Address,
-				Balance:  tokenBalance.String(),
-				Decimals: tokenData.Decimals,
-				Name:     tokenData.Name,
-				Symbol:   tokenData.Symbol,
-			}
-			balances = append(balances, balance)
-		}
-		if len(balances) > 0 {
-			wallet := &Wallet{
-				Address:  req.address,
-				Balances: balances,
-			}
-			fmt.Println(wallet)
-		}
-	}
+	return
 }
 
 func loadTokensData(cfg config.Schema) {
