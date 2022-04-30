@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/utu-crowdsale/defi-portal-scanner/config"
 	"github.com/utu-crowdsale/defi-portal-scanner/wallet"
+	"gopkg.in/robfig/cron.v2"
 )
 
 type BalanceRequest struct {
@@ -26,6 +27,11 @@ func init() {
 func BalanceCollectorReady(cfg config.Schema) {
 	go balanceReqProcessor(cfg)
 	go walletProcessor(cfg.UTUTrustAPI)
+	c := cron.New()
+	c.AddFunc("@every 24h", func() {
+		go wallet.ScanCached(cfg, walletsChan)
+	})
+	c.Start()
 }
 
 func ScanTokensBalances(cfg config.Schema, address string, tokens []string) {

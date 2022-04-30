@@ -48,6 +48,7 @@ type Balance struct {
 }
 
 var (
+	addressesToScan    = make(map[string]interface{})
 	tokenDataByAddress map[string]token
 	contractAddresses  []string
 )
@@ -58,7 +59,18 @@ func Ready(cfg config.Schema) {
 
 func Scan(cfg config.Schema, address string, tokens []string, ch chan<- *Wallet) {
 	addresses := defineAddresses(tokens)
-	alchemyResponse, err := getBalances(cfg, address, addresses)
+	addressesToScan[address] = addresses
+	scan(cfg, address, addresses, ch)
+}
+
+func ScanCached(cfg config.Schema, ch chan<- *Wallet) {
+	for address, addresses := range addressesToScan {
+		scan(cfg, address, addresses, ch)
+	}
+}
+
+func scan(cfg config.Schema, address string, tokens interface{}, ch chan<- *Wallet) {
+	alchemyResponse, err := getBalances(cfg, address, tokens)
 	if err != nil {
 		log.Error("Couldn't fetch token balances for %s", address, err)
 		return
