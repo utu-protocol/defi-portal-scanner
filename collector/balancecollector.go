@@ -73,10 +73,10 @@ func walletProcessor(cfg config.TrustEngineSchema) {
 
 func toTrustRelationship(wallet *wallet.Wallet, balance *wallet.Balance) *TrustRelationship {
 	r := NewTrustRelationship()
-	r.Type = "erc20_balance"
+	r.Type = "has"
 	r.SourceCriteria = NewTrustEntity(wallet.Address)
 	r.SourceCriteria.Ids["address"] = wallet.Address
-	r.SourceCriteria.Type = "wallet"
+	r.SourceCriteria.Type = "address"
 	r.TargetCriteria = NewTrustEntity(balance.Symbol)
 	r.TargetCriteria.Ids["address"] = balance.Address
 	r.TargetCriteria.Type = "erc20"
