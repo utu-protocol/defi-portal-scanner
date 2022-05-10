@@ -6,6 +6,10 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Address is a custom type that guarantees that the Ethereum address (a string)
+// is lowercased/checksummed
+type Address string
+
 // ServicesSchema configure side services
 type ServicesSchema struct {
 	GlitchtipDsn string `mapstructure:"glitchtip_dsn"`
@@ -15,6 +19,10 @@ type ServicesSchema struct {
 type EthereumSchema struct {
 	WssURL            string `mapstructure:"node_wss_url"`
 	EtherscanAPIToken string `mapstructure:"etherscan_api_token"`
+}
+
+type AlchemySchema struct {
+	URL string `mapstructure:"url"`
 }
 
 // TrustEngineSchema the trust engine client configuration
@@ -31,9 +39,11 @@ type ServerSchema struct {
 
 // Schema main configuration for the news room
 type Schema struct {
+	AlchemyAPI         AlchemySchema     `mapstructure:"alchemy_api"`
 	Ethereum           EthereumSchema    `mapstructure:"eth"`
 	UTUTrustAPI        TrustEngineSchema `mapstructure:"utu_trust_api"`
 	DefiSourcesFile    string            `mapstructure:"defi_sources_file"`
+	TokensDataFile     string            `mapstructure:"tokens_data_file"`
 	LogOutputFile      string            `mapstructure:"log_output_file"`
 	Services           ServicesSchema    `mapstructure:"services"`
 	Server             ServerSchema      `mapstructure:"server"`
@@ -46,6 +56,7 @@ type Schema struct {
 func Defaults() {
 	// scheduler defaults
 	viper.SetDefault("defi_sources_file", "protocols.json")
+	viper.SetDefault("tokens_data_file", "tokens.json")
 	viper.SetDefault("log_output_file", "output.json")
 	viper.SetDefault("track_topics", []string{"transfer"})
 	viper.SetDefault("db_folder", "db")

@@ -12,8 +12,6 @@ import (
 	"github.com/utu-crowdsale/defi-portal-scanner/utils"
 )
 
-var downloadOnly bool
-
 var oceanCmd = &cobra.Command{
 	Use:   "ocean",
 	Short: "All things OCEAN protocol related",

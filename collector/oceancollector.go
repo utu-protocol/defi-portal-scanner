@@ -11,7 +11,7 @@ import (
 	"github.com/utu-crowdsale/defi-portal-scanner/config"
 )
 
-func OceanPoolEventSubscribe(ethConfig config.EthereumSchema, oceanPools []Address) {
+func OceanPoolEventSubscribe(ethConfig config.EthereumSchema, oceanPools []config.Address) {
 	log.Info("Starting collector for Ocean Pools")
 
 	// First, cast our Address into a ethereum library common.Address

@@ -8,6 +8,7 @@ import (
 	"github.com/makasim/sentryhook"
 	log "github.com/sirupsen/logrus"
 	"github.com/utu-crowdsale/defi-portal-scanner/collector"
+	"github.com/utu-crowdsale/defi-portal-scanner/wallet"
 
 	"github.com/spf13/cobra"
 )
@@ -17,6 +18,7 @@ var (
 	httpEnabled         bool
 	scanEnabled         bool
 	protocolsDescriptor string
+	tokensDescriptor    string
 )
 
 // listenCmd represents the listen command
@@ -33,6 +35,7 @@ func init() {
 	listenCmd.Flags().BoolVar(&httpEnabled, "http", false, "Enable http API to submit addresses")
 	listenCmd.Flags().BoolVar(&scanEnabled, "scan", false, "Enable defi protocols subscription scanning")
 	listenCmd.Flags().StringVarP(&protocolsDescriptor, "protocols", "p", "", "Override the protocols file description location")
+	listenCmd.Flags().StringVarP(&tokensDescriptor, "tokens", "t", "", "Override the tokens file description location")
 }
 
 func listen(cmd *cobra.Command, args []string) {
@@ -63,7 +66,13 @@ func listen(cmd *cobra.Command, args []string) {
 		settings.DefiSourcesFile = protocolsDescriptor
 	}
 
+	if tokensDescriptor != "" {
+		settings.TokensDataFile = tokensDescriptor
+	}
+
 	collector.Ready(settings)
+	collector.BalanceCollectorReady(settings)
+	wallet.Ready(settings)
 	// synchronize services
 	var wg sync.WaitGroup
 	// start the service
@@ -85,8 +94,6 @@ func listen(cmd *cobra.Command, args []string) {
 				log.Fatal(err)
 			}
 		}()
-
 	}
 	wg.Wait()
-
 }
