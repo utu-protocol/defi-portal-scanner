@@ -18,7 +18,6 @@ var (
 	httpEnabled         bool
 	scanEnabled         bool
 	protocolsDescriptor string
-	tokensDescriptor    string
 )
 
 // listenCmd represents the listen command
@@ -35,7 +34,6 @@ func init() {
 	listenCmd.Flags().BoolVar(&httpEnabled, "http", false, "Enable http API to submit addresses")
 	listenCmd.Flags().BoolVar(&scanEnabled, "scan", false, "Enable defi protocols subscription scanning")
 	listenCmd.Flags().StringVarP(&protocolsDescriptor, "protocols", "p", "", "Override the protocols file description location")
-	listenCmd.Flags().StringVarP(&tokensDescriptor, "tokens", "t", "", "Override the tokens file description location")
 }
 
 func listen(cmd *cobra.Command, args []string) {
@@ -64,10 +62,6 @@ func listen(cmd *cobra.Command, args []string) {
 	settings.UTUTrustAPI.DryRun = settings.UTUTrustAPI.DryRun || dryRun
 	if protocolsDescriptor != "" {
 		settings.DefiSourcesFile = protocolsDescriptor
-	}
-
-	if tokensDescriptor != "" {
-		settings.TokensDataFile = tokensDescriptor
 	}
 
 	collector.Ready(settings)

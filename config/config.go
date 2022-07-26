@@ -21,10 +21,6 @@ type EthereumSchema struct {
 	EtherscanAPIToken string `mapstructure:"etherscan_api_token"`
 }
 
-type AlchemySchema struct {
-	URL string `mapstructure:"url"`
-}
-
 // TrustEngineSchema the trust engine client configuration
 type TrustEngineSchema struct {
 	URL           string `mapstructure:"url"`
@@ -37,13 +33,12 @@ type ServerSchema struct {
 	ListenAddress string `mapstructure:"listen_address"`
 }
 
-// Schema main configuration for the news room
+// Schema main configuration
 type Schema struct {
-	AlchemyAPI         AlchemySchema     `mapstructure:"alchemy_api"`
+	BalanceAPI         map[string]string `mapstructure:"balance_api"`
 	Ethereum           EthereumSchema    `mapstructure:"eth"`
 	UTUTrustAPI        TrustEngineSchema `mapstructure:"utu_trust_api"`
 	DefiSourcesFile    string            `mapstructure:"defi_sources_file"`
-	TokensDataFile     string            `mapstructure:"tokens_data_file"`
 	LogOutputFile      string            `mapstructure:"log_output_file"`
 	Services           ServicesSchema    `mapstructure:"services"`
 	Server             ServerSchema      `mapstructure:"server"`

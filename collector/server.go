@@ -2,7 +2,6 @@ package collector
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
@@ -35,17 +34,11 @@ func Serve(cfg config.Schema) (err error) {
 
 	e.POST("/subscribe/:address", func(c echo.Context) (err error) {
 		address := NewAddressFromString(c.Param("address"))
-		err = Scan(cfg, address)
+		err = Scan(address)
 		if err != nil {
 			log.Error(err)
 			return c.JSON(http.StatusTeapot, map[string]string{})
 		}
-		tokensParam := c.QueryParam("tokens")
-		var tokens []string
-		if len(tokensParam) > 0 {
-			tokens = strings.Split(tokensParam, ",")
-		}
-		ScanTokensBalances(cfg, c.Param("address"), tokens)
 		return c.JSON(http.StatusOK, map[string]string{})
 	})
 	err = e.Start(cfg.Server.ListenAddress)
