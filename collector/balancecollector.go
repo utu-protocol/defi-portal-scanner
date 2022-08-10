@@ -25,23 +25,23 @@ func init() {
 }
 
 func BalanceCollectorReady(cfg config.Schema) {
-	go balanceReqProcessor(cfg)
+	go balanceReqProcessor()
 	go walletProcessor(cfg.UTUTrustAPI)
 	c := cron.New()
 	c.AddFunc("@every 24h", func() {
-		go wallet.ScanCached(cfg, walletsChan)
+		go wallet.ScanCached(walletsChan)
 	})
 	c.Start()
 }
 
-func ScanTokensBalances(cfg config.Schema, address string, tokens []string) {
+func ScanTokensBalances(address string) {
+	log.Infof("Received a request to scan tokens balances for %s", address)
 	balancesRequestQueue <- &BalanceRequest{
 		Address: strings.ToLower(address),
-		Tokens:  tokens,
 	}
 }
 
-func balanceReqProcessor(cfg config.Schema) {
+func balanceReqProcessor() {
 	for {
 		req, more := <-balancesRequestQueue
 		log.Infof("received request to scan token balances for %v", req.Address)
@@ -49,7 +49,7 @@ func balanceReqProcessor(cfg config.Schema) {
 			log.Info("no more requests to scan balances for")
 			break
 		}
-		wallet.Scan(cfg, req.Address, req.Tokens, walletsChan)
+		wallet.Scan(req.Address, walletsChan)
 	}
 }
 
@@ -82,5 +82,6 @@ func toTrustRelationship(wallet *wallet.Wallet, balance *wallet.Balance) *TrustR
 	r.TargetCriteria.Type = "erc20"
 	r.TargetCriteria.Name = balance.Symbol
 	r.Properties["balance"] = balance.Balance
+	r.Properties["network"] = balance.Network
 	return r
 }

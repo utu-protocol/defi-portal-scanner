@@ -10,3 +10,8 @@ utu_trust_api:
     url: https://gateway.ututrust.com
     client_id: <UTU client id> 
     dry_run: false
+
+balance_api: 
+    ethereum: https://api.covalenthq.com/v1/1/address/%s/balances_v2/?quote-currency=USD&format=JSON&nft=false&no-nft-fetch=false&key= # 1 - mainnet; 42 - kovan
+    polygon: https://api.covalenthq.com/v1/137/address/%s/balances_v2/?quote-currency=USD&format=JSON&nft=false&no-nft-fetch=false&key= # 137 - mainnet; 80001 - mumbai
+    gnosis: https://blockscout.com/xdai/mainnet/api?module=account&action=tokenlist&address=%s # mainnet | testnet
