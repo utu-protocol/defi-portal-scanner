@@ -17,8 +17,8 @@ FROM golang:1.18.0
 # Copy our static executable + data
 COPY --from=builder /defi-portal-scanner /
 # Copy config file 
-COPY ./private/config.yaml /
-COPY ./private/protocols.json /
+# COPY ./private/config.yaml /private/
+# COPY ./private/protocols.json /priave/
 # Run the whole shebang.
 ENTRYPOINT [ "/defi-portal-scanner" ]
-CMD [ "listen", "--config", "/config.yaml", "--protocols", "/protocols.json", "--scan", "--http"]
+CMD [ "listen", "--config", "/private/config.yaml", "--protocols", "/private/protocols.json", "--scan", "--http"]
