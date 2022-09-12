@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	log "github.com/sirupsen/logrus"
 )
 
 // EtherscanReply a reply from etherscan
@@ -125,6 +126,33 @@ func (c EtherscanClient) GetTransactions(address Address) (txs []EthTransaction,
 
 }
 
+func (c EtherscanClient) getLatestBlock() uint64 {
+	req, err := http.NewRequest("GET", "https://ethgasstation.info/api/ethgasAPI.json", nil)
+	if err != nil {
+		return 0
+	}
+	res, err := c.HTTPCli.Do(req)
+	if err != nil {
+		log.Error("an error occurred while request most recent block, goint to use block 0", err)
+		return 0
+	}
+	defer res.Body.Close()
+	data, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Error("cannot read response body for latest block, goint to use block 0", err)
+		return 0
+	}
+	var r struct {
+		BlockNum uint64 `json:"blockNum"`
+	}
+	err = json.Unmarshal(data, &r)
+	if err != nil {
+		log.Error("cannot unmarshal latest block data, goint to use block 0", err)
+		return 0
+	}
+	return r.BlockNum
+}
+
 // getPagedTransactions execute GET query and parse possible responses
 func (c EtherscanClient) getPagedTransactions(address Address, page, offset int) (txs []EthTransaction, err error) {
 
@@ -133,26 +161,34 @@ func (c EtherscanClient) getPagedTransactions(address Address, page, offset int)
 		return
 	}
 
+	latestBlock := c.getLatestBlock()
+
 	q := req.URL.Query()
 	q.Add("module", "account")
 	q.Add("action", "txlist")
 	q.Add("address", string(address))
+	q.Add("startblock", fmt.Sprint(latestBlock - 25))
 	q.Add("apikey", c.APIToken)
 	q.Add("page", fmt.Sprint(page))     // which page
 	q.Add("offset", fmt.Sprint(offset)) // how many items
 	req.URL.RawQuery = q.Encode()
-
 	res, err := c.HTTPCli.Do(req)
 	if err != nil {
+		log.Error("an error occurred while sending a txlist request", err)
 		return
 	}
+	defer res.Body.Close()
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
+		log.Error("cannot response body from etherscan", err)
 		return
 	}
-
 	var r EtherscanReply
 	err = json.Unmarshal(data, &r)
+	if err != nil {
+		log.Error("cannot unmarshal etherscal reply", err)
+		return
+	}
 	txs = r.Result
 
 	// if no more transactions are found, r.status will also be 0
