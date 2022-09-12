@@ -14,7 +14,7 @@ DOCKER_TAG = $(GIT_DESCR)
 OS = linux
 ARCH = amd64
 # K8S
-K8S_NAMESPACE = defi-portal
+K8S_NAMESPACE = utu-trust-api
 K8S_DEPLOYMENT = defi-portal-scanner
 
 .PHONY: list
