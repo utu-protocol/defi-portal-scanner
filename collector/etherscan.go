@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
+
 	log "github.com/sirupsen/logrus"
 )
+
+var DEFAULT_BLOCK_LIMIT = "25"
 
 // EtherscanReply a reply from etherscan
 type EtherscanReply struct {
@@ -126,33 +130,6 @@ func (c EtherscanClient) GetTransactions(address Address) (txs []EthTransaction,
 
 }
 
-func (c EtherscanClient) getLatestBlock() uint64 {
-	req, err := http.NewRequest("GET", "https://ethgasstation.info/api/ethgasAPI.json", nil)
-	if err != nil {
-		return 0
-	}
-	res, err := c.HTTPCli.Do(req)
-	if err != nil {
-		log.Error("an error occurred while request most recent block, goint to use block 0", err)
-		return 0
-	}
-	defer res.Body.Close()
-	data, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Error("cannot read response body for latest block, goint to use block 0", err)
-		return 0
-	}
-	var r struct {
-		BlockNum uint64 `json:"blockNum"`
-	}
-	err = json.Unmarshal(data, &r)
-	if err != nil {
-		log.Error("cannot unmarshal latest block data, goint to use block 0", err)
-		return 0
-	}
-	return r.BlockNum
-}
-
 // getPagedTransactions execute GET query and parse possible responses
 func (c EtherscanClient) getPagedTransactions(address Address, page, offset int) (txs []EthTransaction, err error) {
 
@@ -161,16 +138,17 @@ func (c EtherscanClient) getPagedTransactions(address Address, page, offset int)
 		return
 	}
 
-	latestBlock := c.getLatestBlock()
-
 	q := req.URL.Query()
 	q.Add("module", "account")
 	q.Add("action", "txlist")
 	q.Add("address", string(address))
-	q.Add("startblock", fmt.Sprint(latestBlock - 25))
 	q.Add("apikey", c.APIToken)
 	q.Add("page", fmt.Sprint(page))     // which page
 	q.Add("offset", fmt.Sprint(offset)) // how many items
+	startBlock, err := c.getStartBlock()
+	if err == nil {
+		q.Add("startblock", *startBlock)
+	}
 	req.URL.RawQuery = q.Encode()
 	res, err := c.HTTPCli.Do(req)
 	if err != nil {
@@ -205,4 +183,46 @@ func (c EtherscanClient) getPagedTransactions(address Address, page, offset int)
 	}
 	return
 
+}
+
+func (c EtherscanClient) getStartBlock() (*string, error) {
+	latestBlock := c.getLatestBlock()
+	blockLimit, present := os.LookupEnv("BLOCK_LIMIT")
+	if !present {
+		blockLimit = DEFAULT_BLOCK_LIMIT
+	}
+	blockLimitNumber, err := strconv.ParseUint(blockLimit, 10, 64)
+	if err != nil {
+		log.Errorf("cannot parse a block number from the value %s", blockLimit)
+		return nil, err
+	}
+	startBlock := fmt.Sprint(latestBlock - blockLimitNumber)
+	return &startBlock, nil
+}
+
+func (c EtherscanClient) getLatestBlock() uint64 {
+	req, err := http.NewRequest("GET", "https://ethgasstation.info/api/ethgasAPI.json", nil)
+	if err != nil {
+		return 0
+	}
+	res, err := c.HTTPCli.Do(req)
+	if err != nil {
+		log.Error("an error occurred while request most recent block, goint to use block 0", err)
+		return 0
+	}
+	defer res.Body.Close()
+	data, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Error("cannot read response body for latest block, goint to use block 0", err)
+		return 0
+	}
+	var r struct {
+		BlockNum uint64 `json:"blockNum"`
+	}
+	err = json.Unmarshal(data, &r)
+	if err != nil {
+		log.Error("cannot unmarshal latest block data, goint to use block 0", err)
+		return 0
+	}
+	return r.BlockNum
 }
