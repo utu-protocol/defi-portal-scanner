@@ -332,7 +332,7 @@ func addressProcessor(cfg config.Schema) {
 	cache := make(map[Address]bool)
 	// get the etherscan client
 	client := NewEtherscanClient(cfg.Ethereum.EtherscanAPIToken)
-	client.PageSize = 10000
+	client.PageSize = 2000
 	for {
 		addr, more := <-addrQueue
 		log.Info("received request to scan address ", addr)
