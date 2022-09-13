@@ -159,7 +159,7 @@ func (c EtherscanClient) getPagedTransactions(address Address, page, offset int)
 	txs = r.Result
 
 	// if no more transactions are found, r.status will also be 0
-	if offset*page == 10000 || r.Message == "No transactions found" && len(txs) == 0 {
+	if offset*page >= 10000 || r.Message == "No transactions found" && len(txs) == 0 {
 		return txs, &NoMoreTransactionsError{
 			address: address,
 			page:    page,
