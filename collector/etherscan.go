@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // EtherscanReply a reply from etherscan
@@ -148,6 +150,7 @@ func (c EtherscanClient) getPagedTransactions(address Address, page, offset int)
 	}
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
+		log.Error("cannot read response body from etherscan", err)
 		return
 	}
 
@@ -156,7 +159,7 @@ func (c EtherscanClient) getPagedTransactions(address Address, page, offset int)
 	txs = r.Result
 
 	// if no more transactions are found, r.status will also be 0
-	if r.Message == "No transactions found" && len(txs) == 0 {
+	if offset*page == 10000 || r.Message == "No transactions found" && len(txs) == 0 {
 		return txs, &NoMoreTransactionsError{
 			address: address,
 			page:    page,
