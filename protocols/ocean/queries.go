@@ -2,21 +2,24 @@ package ocean
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strings"
+
+	"crypto/sha256"
 
 	"github.com/machinebox/graphql"
 	"github.com/utu-crowdsale/defi-portal-scanner/utils"
 )
 
 const OCEAN_ERC20_ADDRESS = "0x967da4048cd07ab37855c090aaf366e4ce1b9f48"
-const OCEAN_SUBGRAPH_MAINNET = "https://subgraph.mainnet.oceanprotocol.com/subgraphs/name/oceanprotocol/ocean-subgraph"
+const OCEAN_SUBGRAPH_MAINNET = "https://v4.subgraph.mainnet.oceanprotocol.com/subgraphs/name/oceanprotocol/ocean-subgraph"
+const CHAIN_ID = 1
 
-const AQUARIUS_URL_DDO = "https://aquarius.oceanprotocol.com/api/v1/aquarius/assets/ddo/"
+const AQUARIUS_URL_DDO = "https://v4.aquarius.oceanprotocol.com/api/aquarius/assets/ddo/"
 const PURGATORY_ASSETS = "https://raw.githubusercontent.com/oceanprotocol/list-purgatory/main/list-assets.json"
 const PURGATORY_ACCOUNTS = "https://raw.githubusercontent.com/oceanprotocol/list-purgatory/main/list-assets.json"
 
@@ -29,11 +32,8 @@ func graphQuery(query string, respContainer interface{}, debug bool) (err error)
 	}
 	req := graphql.NewRequest(query)
 
-	// define a Context for the request
-	ctx := context.Background()
-
 	// run it and capture the response
-	if err = client.Run(ctx, req, respContainer); err != nil {
+	if err = client.Run(context.Background(), req, respContainer); err != nil {
 		log.Fatal(err)
 		return
 	}
@@ -56,10 +56,14 @@ func (ae *aquariusError) Error() string {
 // description from Aquarius. The argument datatokenAddress must be the 0x...
 // Ethereum address, which will be stripped of its 0x prefix to produce the DID.
 // IMPORTANT: The DID is made from a checksummed Ethereum address, not lowercase!
-func aquariusQuery(datatokenAddress string) (ddo *DecentralizedDataObject, err error) {
-	datatokenAddress = utils.ChecksumAddress(datatokenAddress)
-	did := strings.TrimLeft(datatokenAddress, "0x")
-	resp, err := http.Get(fmt.Sprintf("%sdid:op:%s", AQUARIUS_URL_DDO, did)) // https://multiaqua.oceanprotocol.com/api/v1/aquarius/assets/ddo/did:op:0f5A4C51Dd71C7FB8D5D61e5B56C996681e4302F
+func aquariusQuery(erc721Address string) (ddo *DecentralizedDataObject, err error) {
+	erc721AddressChecksumed := utils.ChecksumAddress(erc721Address)
+	h := sha256.New()
+	h.Write([]byte(fmt.Sprintf("%s%v", erc721AddressChecksumed, CHAIN_ID)))
+	did := hex.EncodeToString(h.Sum(nil))
+	requestURL := fmt.Sprintf("%sdid:op:%s", AQUARIUS_URL_DDO, did)
+	log.Println(requestURL)
+	resp, err := http.Get(requestURL)
 	if err != nil {
 		return
 	}
@@ -87,22 +91,6 @@ type PurgatoryAsset struct {
 type PurgatoryAccount struct {
 	Address string
 	Reason  string
-}
-
-// purgAssets gets a list of assets in purgatory from a fixed URL on Github and parses the JSON.
-func purgAssets() (pa []PurgatoryAsset, err error) {
-	resp, err := http.Get(PURGATORY_ASSETS)
-	if err != nil {
-		return
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return
-	}
-
-	err = json.Unmarshal(body, &pa)
-	return
 }
 
 // purgAccounts gets a list of assets in purgatory from a fixed URL on Github

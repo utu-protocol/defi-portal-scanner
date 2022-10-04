@@ -14,9 +14,5 @@ func TestDecentralizedDataObjectGetNameDescription(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	name, author, description, tags, categories, err := ddo.GetNameAuthorMetadata()
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Printf("name: %s\nauthor: %s\ndescription: %s\ntags: %s\ncategories: %s\n", name, author, description, strings.Join(tags, ", "), strings.Join(categories, ", "))
+	fmt.Printf("name: %s\nauthor: %s\ndescription: %s\ntags: %s\ncategories: %s\n", ddo.Metadata.Name, ddo.Metadata.Author, ddo.Metadata.Description, strings.Join(ddo.Metadata.Tags, ", "), strings.Join(ddo.Metadata.Categories, ", "))
 }

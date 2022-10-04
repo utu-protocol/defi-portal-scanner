@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strconv"
 
 	"github.com/barkimedes/go-deepcopy"
 )
@@ -38,55 +37,34 @@ func paginatedGraphQuery(baseQuery string, respContainer pageEmptiable) (pages [
 	return
 }
 
-// PipelineAssets makes queries to Aquarius, the github repos for things in purgatory,
-// and builds up an internal state.
-func PipelineAssets(log *log.Logger) (assets []*Asset, err error) {
+func PipelineAll(log *log.Logger) (*PipelineResult, error) {
+
 	// Get basic data about Datatokens, and how many times they were consumed.
-	baseDatatokensQuery := `{datatokens(orderBy:name%s) {
-		symbol
-		name
-		address
-		publisher
-		orders{
-		  consumer{
-			id
-		  }
-		}
-		orderCount
-	  }}`
+	baseDatatokensQuery := `{datatokens: tokens(where: {isDatatoken: true} orderBy:name%s) {
+			symbol
+			name
+			address
+			nft {
+				  creator
+				address
+			}
+			orders{
+			  tx
+			  amount
+			  timestamp: createdTimestamp
+			  user: consumer{
+				id
+			  }
+			}
+			orderCount
+		  }}`
 
 	pages, err := paginatedGraphQuery(baseDatatokensQuery, new(DatatokenResponsePage))
 	if err != nil {
 		log.Println("Error connecting to GraphQL", err)
 		return nil, err
 	}
-	/*
-		"datatokens": [
-			{
-				"address": "0x028e0b27a39ff92fd30b4b8c310ea745f309ccf3",
-				"name": "Brave Nautilus Token",
-				"orderCount": "3",
-				"orders": [
-					{
-					"consumer": {
-						"id": "0x1bb7951ba30eda67bf3e5d851fe5e0e6a01a14b5"
-					}
-					},
-					{
-					"consumer": {
-						"id": "0x4ba10551d7b76b30369e9ef8d27966e19dcc786b"
-					}
-					},
-					{
-					"consumer": {
-						"id": "0xb40156f51103ebaa842590ce51dd2cd0a9e83cda"
-					}
-					}
-				],
-				"symbol": "BRANAU-77"
-			}
-			]
-	*/
+
 	var dtr []DatatokenResponse
 	for _, p := range pages {
 		page := p.(*DatatokenResponsePage)
@@ -103,97 +81,58 @@ func PipelineAssets(log *log.Logger) (assets []*Asset, err error) {
 		datatokens = append(datatokens, dt)
 	}
 
-	// Now pull up info on all Pools. Since we receive Pools as a list, which is
-	// not so easy to search through, we transform it into a map of
-	// datatokenAddress -> PoolGraphQLResponse
-	basePoolsQuery := `{pools (where: {datatokenAddress_not: ""}, orderBy: oceanReserve, orderDirection:desc%s ) {
-		id
-		controller
-		totalSwapVolume
-		datatokenAddress
-		datatokenReserve
-		oceanReserve
-	}}`
-
-	respPool := new(PoolResponsePage)
-	pages, err = paginatedGraphQuery(basePoolsQuery, respPool)
-	if err != nil {
-		log.Println("Error while querying GraphQL for pools", err)
-		return
-	}
-	var pr []PoolGraphQLResponse
-	for _, p := range pages {
-		page := p.(*PoolResponsePage)
-		pr = append(pr, page.Flatten()...)
-	}
-	pm := make(map[string][]*Pool)
-	for _, pGrQlResp := range pr {
-		pool, err := pGrQlResp.toPool()
-		if err != nil {
-			log.Println("Error while transforming PoolGraphQLResponse to Pool struct", err)
-			return nil, err
-		}
-		poolDatatokenAddress := pGrQlResp.DatatokenAddress
-
-		pm[poolDatatokenAddress] = append(pm[poolDatatokenAddress], pool)
-	}
-
 	// We have Pools and Datatokens, so we can now construct Assets. A Datatoken
 	// may not have a Pool, or even a DDO associated with it. But we're only
 	// interested in Datatokens with Pools and DDOs.
+	assets := make([]*Asset, 0)
 	for _, dt := range datatokens {
-		// If Datatoken does not have corresponding Pool, immediately skip it (don't bother Aquarius)
-		pool := pm[dt.Address]
-		if pool == nil {
-			// log.Printf("%s does not have a corresponding Pool, skipping", dt.Address)
-			continue
-		}
 
 		// In practice, Aquarius only knows about Datatokens which have Pools.
-		var purgatoryStatus bool
-		ddo, err := aquariusQuery(dt.Address)
+		ddo, err := aquariusQuery(dt.NFT.NFTAddress)
 		if err != nil {
 			log.Printf("%s is not known by Aquarius, skipping: %s", dt.Address, err)
 			continue
 		}
-		// ddo := DecentralizedDataObject{} // mock Aquarius out since it isn't working atm
-		// ddo.IsInPurgatory = "false"
-
-		purgatoryStatus, err = strconv.ParseBool(ddo.IsInPurgatory)
-		if err != nil {
-			return nil, err
-		}
-
-		name, author, desc, tags, categories, err := ddo.GetNameAuthorMetadata()
-		if err != nil {
-			log.Printf("Asset %s: unable to retrieve name and description from Aquarius: %s", ddo.ID, err)
-		}
 
 		asset := &Asset{
-			Name:               name,
-			Description:        desc,
+			Name:               ddo.Metadata.Name,
+			Description:        ddo.Metadata.Description,
 			DID:                ddo.ID,
-			Pool:               pool,
 			Datatoken:          dt,
-			PublishedBy:        author,
-			PublishedByAddress: dt.Publisher,
-			Purgatory:          purgatoryStatus,
+			PublishedBy:        ddo.Metadata.Description,
+			PublishedByAddress: dt.NFT.Creator,
+			Purgatory:          ddo.Purgatory.State,
 			Consumed:           dt.OrderCount,
-			Tags:               tags,
-			Categories:         categories,
+			Tags:               ddo.Metadata.Tags,
+			Categories:         ddo.Metadata.Categories,
 		}
 		assets = append(assets, asset)
 	}
 
+	addresses, err := pipelineUsers(dtr, log)
+	if err != nil {
+		return nil, err
+	}
+
 	_, err = json.MarshalIndent(assets, "", "\t")
 	if err != nil {
-		return
+		return nil, err
 	}
-	return assets, nil
+	return &PipelineResult{
+		Assets:    assets,
+		Addresses: addresses,
+	}, nil
+
 }
 
-// PipelineUsers builds a list of users ("addresses" to UTU Trust API) of OCEAN Protocol.
-func PipelineUsers(log *log.Logger) (addresses []*Address, err error) {
+type PipelineResult struct {
+	Assets    []*Asset
+	Addresses []*Address
+}
+
+// PipelineAll makes queries to Aquarius, the github repos for things in purgatory,
+// and builds up an internal state.
+func pipelineUsers(datatokensResponse []DatatokenResponse, log *log.Logger) (addresses []*Address, err error) {
 	// First, get a list of Accounts in Purgatory from Github.
 	purgatoryMap, err := purgAccounts()
 	if err != nil {
@@ -201,51 +140,24 @@ func PipelineUsers(log *log.Logger) (addresses []*Address, err error) {
 		return
 	}
 
-	// Then, get info about Users (here we use the term interchangeably with
-	// Accounts) from GraphQL
-	usersQuery := `{users(orderBy:id%s){
-		  id,
-		  orders {
-			amount
-			timestamp
-			tx
-			datatokenId {
-			  id
-			  symbol
-			  name
-			}
-		  }
-		  poolTransactions(first:1000,orderBy:timestamp,orderDirection:desc){
-			poolAddressStr
-			event
-			timestamp
-			sharesTransferAmount
-			sharesBalance
-			consumePrice
-			spotPrice
-			tx
-			tokens{
-				tokenAddress
-				value
-				type
-			}
-		  }
+	ordersByUser := make(map[string][]OrderWrapper)
+	for _, dd := range datatokensResponse {
+		wrapper := OrderWrapper{
+			Token: OrderToken{
+				ID:     dd.Address,
+				Symbol: dd.Symbol,
+				Name:   dd.Name,
+			}}
+		for _, oo := range dd.Orders {
+			wrapper.TxHash = oo.Tx
+			wrapper.Amount = oo.Amount
+			wrapper.Timestamp = oo.Timestamp
+			ordersByUser[oo.User.ID] = append(ordersByUser[oo.User.ID], wrapper)
 		}
-	  }`
-	pages, err := paginatedGraphQuery(usersQuery, new(UserResponsePage))
-	if err != nil {
-		log.Println("Error connecting to GraphQL", err)
-		return nil, err
 	}
 
-	var ur []UserResponse
-	for _, p := range pages {
-		page := p.(*UserResponsePage)
-		ur = append(ur, page.Flatten()...)
-	}
-
-	for _, userResponse := range ur {
-		u, err := NewAddressFromUserResponse(userResponse, purgatoryMap)
+	for user, orders := range ordersByUser {
+		u, err := NewAddressFromUserResponse(user, orders, purgatoryMap)
 		if err != nil {
 			log.Println("Could not create a Address internal class from a userResponse", err)
 			return nil, err
@@ -269,28 +181,4 @@ func (dt *DatatokenResponsePage) IsEmpty() bool {
 
 func (dt *DatatokenResponsePage) Flatten() []DatatokenResponse {
 	return dt.Datatokens
-}
-
-type PoolResponsePage struct {
-	Pools []PoolGraphQLResponse
-}
-
-func (pr *PoolResponsePage) IsEmpty() bool {
-	return len(pr.Pools) == 0
-}
-
-func (pr *PoolResponsePage) Flatten() []PoolGraphQLResponse {
-	return pr.Pools
-}
-
-type UserResponsePage struct {
-	Users []UserResponse
-}
-
-func (dt *UserResponsePage) IsEmpty() bool {
-	return len(dt.Users) == 0
-}
-
-func (dt *UserResponsePage) Flatten() []UserResponse {
-	return dt.Users
 }
