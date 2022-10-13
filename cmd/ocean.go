@@ -109,16 +109,13 @@ func oceanScanPush(cmd *cobra.Command, args []string) (err error) {
 }
 
 func pullDataFromOcean(logger *log.Logger) (assets []*ocean.Asset, users []*ocean.Address, err error) {
-	logger.Println("Pulling Assets from OCEAN Subgraph")
-	assets, err = ocean.PipelineAssets(logger)
+	logger.Println("Pulling assets and users")
+	result, err := ocean.PipelineAll(logger)
 	if err != nil {
 		return
 	}
-	logger.Println("Pulling Users from OCEAN Subgraph")
-	users, err = ocean.PipelineUsers(logger)
-	if err != nil {
-		return
-	}
+	assets = result.Assets
+	users = result.Addresses
 	return
 }
 

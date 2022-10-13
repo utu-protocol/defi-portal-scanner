@@ -19,28 +19,22 @@ func readJson(t *testing.T, path string) (u []byte) {
 	return u
 }
 
-func TestPipelineAssets(t *testing.T) {
+func TestPipelineAll(t *testing.T) {
 	logger := log.Default()
-	assets, err := PipelineAssets(logger)
+	result, err := PipelineAll(logger)
+	fmt.Println("len(addresses)", len(result.Addresses))
 	assert.Nil(t, err)
 
-	a, err := json.MarshalIndent(assets, "", "\t")
+	a, err := json.MarshalIndent(result.Addresses, "", "\t")
 	assert.Nil(t, err)
-	f, err := os.OpenFile("assets.json", os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile("addresses.json", os.O_CREATE|os.O_WRONLY, 0644)
 	assert.Nil(t, err)
 	_, err = f.Write(a)
 	assert.Nil(t, err)
-}
 
-func TestPipelineUsers(t *testing.T) {
-	logger := log.Default()
-	addresses, err := PipelineUsers(logger)
-	fmt.Println("len(addresses)", len(addresses))
+	a, err = json.MarshalIndent(result.Assets, "", "\t")
 	assert.Nil(t, err)
-
-	a, err := json.MarshalIndent(addresses, "", "\t")
-	assert.Nil(t, err)
-	f, err := os.OpenFile("addresses.json", os.O_CREATE|os.O_WRONLY, 0644)
+	f, err = os.OpenFile("assets.json", os.O_CREATE|os.O_WRONLY, 0644)
 	assert.Nil(t, err)
 	_, err = f.Write(a)
 	assert.Nil(t, err)

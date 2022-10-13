@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"strings"
 
 	"github.com/fatih/structs"
 	"github.com/utu-crowdsale/defi-portal-scanner/collector"
@@ -14,7 +13,6 @@ type Asset struct {
 	Name               string     `json:"name"`
 	Description        string     `json:"description"`
 	DID                string     `json:"did"`
-	Pool               []*Pool    `json:"pool"`
 	Datatoken          *Datatoken `json:"datatoken"`
 	PublishedBy        string     `json:"published_by"`         // this is obtained from Aquarius DDO
 	PublishedByAddress string     `json:"published_by_address"` // this is obtained from pool.controller
@@ -35,12 +33,7 @@ func (a *Asset) toTrustEntity() (te *collector.TrustEntity) {
 	te.Ids["symbol"] = a.Datatoken.Symbol
 	te.Ids["uuid"] = "dt_" + a.Datatoken.Address
 	te.Ids["address_datatoken"] = a.Datatoken.Address
-
-	var poolAddresses []string
-	for _, p := range a.Pool {
-		poolAddresses = append(poolAddresses, p.Address)
-	}
-	te.Ids["addresses_pool"] = strings.Join(poolAddresses, ",")
+	te.Ids["DID"] = a.DID
 
 	te.Properties = structs.Map(a)
 	te.Name = a.Name
@@ -48,26 +41,8 @@ func (a *Asset) toTrustEntity() (te *collector.TrustEntity) {
 
 	// These are already represented as other UTU Trust Entity objects, no need
 	// to duplicate them as maps here
-	delete(te.Properties, "Pool")
 	delete(te.Properties, "Datatoken")
-	return
-}
-
-func (a *Asset) poolsToTrustEntities() (te []*collector.TrustEntity) {
-	for _, p := range a.Pool {
-		te = append(te, p.toTrustEntity())
-	}
-	return
-}
-
-func (a *Asset) poolsToTrustRelationships() (tr []*collector.TrustRelationship) {
-	for _, pool := range a.Pool {
-		r := collector.NewTrustRelationship()
-		r.SourceCriteria = a.toTrustEntity()
-		r.TargetCriteria = pool.toTrustEntity()
-		r.Type = "belongsTo"
-		tr = append(tr, r)
-	}
+	delete(te.Properties, "DID")
 	return
 }
 
@@ -79,70 +54,25 @@ func (a *Asset) datatokenToTrustRelationship() (tr *collector.TrustRelationship)
 	return
 }
 
-type Pool struct {
-	Address          string  `json:"address"`
-	Controller       string  `json:"controller"`
-	TotalSwapVolume  float64 `json:"total_swap_volume"`
-	OceanReserve     float64 `json:"ocean_reserve"`
-	DatatokenReserve float64 `json:"datatoken_reserve"`
-}
-
-func (p *Pool) Identifier() string {
-	return fmt.Sprintf("Pool %s", p.Address)
-}
-
-func (p *Pool) toTrustEntity() (te *collector.TrustEntity) {
-	te = collector.NewTrustEntity(p.Identifier())
-	te.Ids["address"] = p.Address
-	te.Properties = structs.Map(p)
-	te.Type = "Pool"
-	return
-}
-
 type DatatokenResponse struct {
 	Address    string
 	Name       string
 	OrderCount string
-	Orders     []struct {
-		Consumer struct {
-			ID string
-		}
+	Orders     []OrderResponse
+	NFT        struct {
+		Address string
+		Creator string
 	}
-	Publisher string
-	Symbol    string
-}
-type PoolGraphQLResponse struct {
-	Controller       string
-	DatatokenAddress string
-	DatatokenReserve string
-	ID               string
-	OceanReserve     string
-	TotalSwapVolume  string
+	Symbol string
 }
 
-func (pgr *PoolGraphQLResponse) toPool() (p *Pool, err error) {
-	sv, err := strconv.ParseFloat(pgr.TotalSwapVolume, 64)
-	if err != nil {
-		return
+type OrderResponse struct {
+	Tx        string
+	Amount    string
+	Timestamp uint64
+	User      struct {
+		ID string
 	}
-	or, err := strconv.ParseFloat(pgr.OceanReserve, 64)
-	if err != nil {
-		return
-	}
-	dtr, err := strconv.ParseFloat(pgr.DatatokenReserve, 64)
-	if err != nil {
-		return
-	}
-
-	p = &Pool{
-		Address:          pgr.ID,
-		Controller:       pgr.Controller,
-		TotalSwapVolume:  sv,
-		OceanReserve:     or,
-		DatatokenReserve: dtr,
-	}
-	return
-
 }
 
 type Address struct {
@@ -150,7 +80,6 @@ type Address struct {
 	PlaceholderImage      string                  `json:"placeholder_image"`
 	Purgatory             bool                    `json:"purgatory"`
 	DatatokenInteractions []*DatatokenInteraction `json:"datatoken_interactions"`
-	PoolInteractions      []*PoolInteraction      `json:"pool_interactions"`
 }
 
 func (a *Address) toTrustEntity() (te *collector.TrustEntity) {
@@ -181,114 +110,47 @@ func (a *Address) datatokenInteractionsToTrustRelationships(datatokensMap map[st
 	return tr
 }
 
-func (a *Address) poolInteractionsToTrustRelationships(poolsMap map[string]*collector.TrustEntity, log *log.Logger) (poolInteractionTes []*collector.TrustRelationship) {
-	for _, pi := range a.PoolInteractions {
-		tr := collector.NewTrustRelationship()
-		tr.SourceCriteria = a.toTrustEntity()
-
-		// An Address may have interacted with an Asset through a Datatoken. Here we
-		// check if the datatoken has pools associated with it.
-
-		poolTe, ok := poolsMap[pi.AddressPool]
-		if !ok {
-			log.Printf("%s interacted with a Pool %s but we haven't heard of it\n", a.Identifier(), pi.AddressPool)
-			continue
-		}
-
-		tr.TargetCriteria = poolTe
-		tr.Properties = structs.Map(pi)
-		tr.Properties["action"] = pi.Event
-		tr.Type = "interaction"
-		poolInteractionTes = append(poolInteractionTes, tr)
-	}
-	return poolInteractionTes
-}
-
 func (a *Address) Identifier() string {
 	return fmt.Sprintf("Address %s", a.Address)
 }
 
-func NewAddressFromUserResponse(ur UserResponse, purgatoryMap map[string]string) (a *Address, err error) {
-	/*
-		{
-			"id": "0x006d0f31a00e1f9c017ab039e9d0ba699433a28c",
-			"orders": [
-				{
-				"amount": "1",
-				"datatokenId": {
-					"id": "0xfcb47f5781f14ed7e032bd395113b84c897aa23f",
-					"name": "Trenchant Pelican Token",
-					"symbol": "TREPEL-36"
-				},
-				"timestamp": 1629082751
-				}
-			],
-			"poolTransactions": [
-				{
-				"event": "swap",
-				"poolAddressStr": "0xa94a4ed3b3414bb2468e5c200d68e56d4ce180f9",
-				"sharesTransferAmount": "0",
-				"timestamp": 1605717888
-				},
-			]
-		}
-	*/
-
+func NewAddressFromUserResponse(user string, orders []OrderWrapper, purgatoryMap map[string]string) (a *Address, err error) {
 	a = &Address{
-		Address:               ur.ID,
+		Address:               user,
 		Purgatory:             false,
-		PlaceholderImage:      fmt.Sprintf("https://via.placeholder.com/150/FFFF00/000000/?text=%s", ur.ID),
+		PlaceholderImage:      fmt.Sprintf("https://via.placeholder.com/150/FFFF00/000000/?text=%s", user),
 		DatatokenInteractions: []*DatatokenInteraction{},
-		PoolInteractions:      []*PoolInteraction{},
 	}
-	_, ok := purgatoryMap[ur.ID]
+	_, ok := purgatoryMap[user]
 	if ok {
 		a.Purgatory = true
 	}
 
-	for _, x := range ur.Orders {
+	for _, x := range orders {
 		dti := &DatatokenInteraction{
-			Address:          ur.ID,
-			AddressDatatoken: x.DatatokenID.ID,
-			SymbolDatatoken:  x.DatatokenID.Symbol,
+			Address:          user,
+			AddressDatatoken: x.Token.ID,
+			SymbolDatatoken:  x.Token.Symbol,
 			Timestamp:        x.Timestamp,
 			TxHash:           x.TxHash,
 		}
 		a.DatatokenInteractions = append(a.DatatokenInteractions, dti)
 	}
-	for _, x := range ur.PoolTransactions {
-		tokensInvolved := []*poolInteractionDatatokenReference{}
-		for _, ti := range x.TokensInvolved {
-			tokensInvolved = append(tokensInvolved, &poolInteractionDatatokenReference{
-				AddressDatatoken: ti.TokenAddress,
-				Type:             ti.Type,
-				Value:            ti.Value,
-			})
-		}
-		p := &PoolInteraction{
-			Address:               ur.ID,
-			AddressPool:           x.PoolAddress,
-			Event:                 x.Event,
-			Timestamp:             x.Timestamp,
-			TxHash:                x.TxHash,
-			ConsumePrice:          x.ConsumePrice,
-			SpotPrice:             x.SpotPrice,
-			PoolSharesTransferred: x.SharesTransferAmount,
-			PoolSharesBalance:     x.SharesBalance,
-			TokensInvolved:        tokensInvolved,
-		}
-
-		a.PoolInteractions = append(a.PoolInteractions, p)
-	}
 	return
 }
 
 type Datatoken struct {
-	Address    string `json:"address"`     // 0x...
-	Name       string `json:"name"`        // Risible Pelican Token
-	Symbol     string `json:"symbol"`      // RISPEL-91
-	OrderCount uint64 `json:"order_count"` // 1 TokenOrder is one consumption of the asset
-	Publisher  string `json:"publisher"`
+	Address    string       `json:"address"`     // 0x...
+	Name       string       `json:"name"`        // Risible Pelican Token
+	Symbol     string       `json:"symbol"`      // RISPEL-91
+	OrderCount uint64       `json:"order_count"` // 1 TokenOrder is one consumption of the asset
+	NFT        DatatokenNFT `json:"nft"`
+	Publisher  string       `json:"string"`
+}
+
+type DatatokenNFT struct {
+	NFTAddress string `json:"address"`
+	Creator    string `json:"creator"`
 }
 
 func (d *Datatoken) Identifier() string {
@@ -299,17 +161,22 @@ func (d *Datatoken) toTrustEntity() (te *collector.TrustEntity) {
 	te = collector.NewTrustEntity(fmt.Sprintf("Datatoken %s", d.Address))
 	te.Ids["address"] = d.Address
 	te.Properties = structs.Map(d)
+	delete(te.Properties, "NFT")
 	te.Type = "Datatoken"
 	return
 }
 
-func NewDataToken(address, name, symbol string, orderCount uint64, publisher string) (dt *Datatoken) {
+func NewDataToken(address, name, symbol string, orderCount uint64, publisher string, nftAddress string) (dt *Datatoken) {
 	return &Datatoken{
 		Address:    address,
 		Name:       name,
 		Symbol:     symbol,
 		OrderCount: orderCount,
-		Publisher:  publisher,
+		NFT: DatatokenNFT{
+			NFTAddress: nftAddress,
+			Creator:    publisher,
+		},
+		Publisher: publisher,
 	}
 }
 
@@ -318,7 +185,7 @@ func NewDataTokenFromDatatokenResponse(dtr DatatokenResponse) (dt *Datatoken, er
 	if err != nil {
 		return
 	}
-	return NewDataToken(dtr.Address, dtr.Name, dtr.Symbol, uint64(orderCount), dtr.Publisher), nil
+	return NewDataToken(dtr.Address, dtr.Name, dtr.Symbol, uint64(orderCount), dtr.NFT.Creator, dtr.NFT.Address), nil
 }
 
 type DatatokenInteraction struct {
@@ -329,50 +196,15 @@ type DatatokenInteraction struct {
 	TxHash           string `json:"txhash"`
 }
 
-type PoolInteraction struct {
-	Address               string                               `json:"address"`
-	AddressPool           string                               `json:"address_pool"`
-	Event                 string                               `json:"event"`
-	Timestamp             uint64                               `json:"timestamp"`
-	TxHash                string                               `json:"txhash"`
-	ConsumePrice          string                               `json:"consumePrice"`
-	SpotPrice             string                               `json:"spotPrice"`
-	PoolSharesTransferred string                               `json:"poolSharesTransferred"` // 0 when swap, nonzero when join/exit
-	PoolSharesBalance     string                               `json:"poolSharesBalance"`     // this indicates the balance of pool shares at the time I query GraphQL. Ocean's GraphQL continuously scans Ethereum, so this value is at most 2 seconds out of date. Reference: Mihai Scarlat
-	TokensInvolved        []*poolInteractionDatatokenReference `json:"tokens_involved"`
+type OrderWrapper struct {
+	Timestamp uint64
+	Amount    string
+	TxHash    string
+	Token     OrderToken
 }
 
-type poolInteractionDatatokenReference struct {
-	AddressDatatoken string `json:"address_datatoken"`
-	Type             string `json:"type"`
-	Value            string `json:"value"`
-}
-
-type UserResponse struct {
-	ID     string `json:"id"`
-	Orders []struct {
-		Timestamp   uint64 `json:"timestamp"`
-		Amount      string `json:"amount"`
-		TxHash      string `json:"tx"`
-		DatatokenID struct {
-			ID     string `json:"id"`
-			Name   string `json:"name"`
-			Symbol string `json:"symbol"`
-		} `json:"datatokenId"`
-	} `json:"orders"`
-	PoolTransactions []struct {
-		Event                string `json:"event"`
-		PoolAddress          string `json:"poolAddressStr"`
-		SharesTransferAmount string `json:"sharesTransferAmount"`
-		SharesBalance        string `json:"sharesBalance"`
-		Timestamp            uint64 `json:"timestamp"`
-		ConsumePrice         string `json:"consumePrice"`
-		SpotPrice            string `json:"spotPrice"`
-		TokensInvolved       []struct {
-			TokenAddress string `json:"tokenAddress"`
-			Type         string `json:"type"`
-			Value        string `json:"value"`
-		} `json:"tokens"`
-		TxHash string `json:"tx"`
-	} `json:"poolTransactions"`
+type OrderToken struct {
+	ID     string
+	Symbol string
+	Name   string
 }

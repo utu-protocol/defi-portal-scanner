@@ -234,17 +234,9 @@ func Start(cfg config.Schema) (err error) {
 	if err != nil {
 		return
 	}
-	// // open the database
-	// store, err := OpenStore(cfg.DbFolder)
-	// if err != nil {
-	// 	return
-	// }
-	// log.Debug(store)
 	// prepare the entities cache
 	var addresFilters []common.Address
 
-	// now get the etherescan api
-	// escli := etherscan.New(etherscan.Mainnet, cfg.EtherscanAPIToken)
 	// read the list of monitored protocols
 	var protocols *ProtocolsFormat
 	err = utils.ReadJSON(cfg.DefiSourcesFile, &protocols)
