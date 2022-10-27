@@ -55,6 +55,7 @@ func PipelineAll(log *log.Logger) (*PipelineResult, error) {
 			  user: consumer{
 				id
 			  }
+			  price: lastPriceValue
 			}
 			orderCount
 		  }}`
@@ -152,6 +153,7 @@ func pipelineUsers(datatokensResponse []DatatokenResponse, log *log.Logger) (add
 			wrapper.TxHash = oo.Tx
 			wrapper.Amount = oo.Amount
 			wrapper.Timestamp = oo.Timestamp
+			wrapper.Price = oo.Price
 			ordersByUser[oo.User.ID] = append(ordersByUser[oo.User.ID], wrapper)
 		}
 	}
