@@ -73,6 +73,7 @@ type OrderResponse struct {
 	User      struct {
 		ID string
 	}
+	Price string
 }
 
 type Address struct {
@@ -133,6 +134,7 @@ func NewAddressFromUserResponse(user string, orders []OrderWrapper, purgatoryMap
 			SymbolDatatoken:  x.Token.Symbol,
 			Timestamp:        x.Timestamp,
 			TxHash:           x.TxHash,
+			Price:            x.Price,
 		}
 		a.DatatokenInteractions = append(a.DatatokenInteractions, dti)
 	}
@@ -194,6 +196,7 @@ type DatatokenInteraction struct {
 	SymbolDatatoken  string `json:"symbol_datatoken"`
 	Timestamp        uint64 `json:"timestamp"`
 	TxHash           string `json:"txhash"`
+	Price            string `json:"price,omitempty"`
 }
 
 type OrderWrapper struct {
@@ -201,6 +204,7 @@ type OrderWrapper struct {
 	Amount    string
 	TxHash    string
 	Token     OrderToken
+	Price     string
 }
 
 type OrderToken struct {
