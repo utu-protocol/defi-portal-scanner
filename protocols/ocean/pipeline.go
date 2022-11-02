@@ -99,7 +99,7 @@ func PipelineAll(log *log.Logger) (*PipelineResult, error) {
 			Description:        ddo.Metadata.Description,
 			DID:                ddo.ID,
 			Datatoken:          dt,
-			PublishedBy:        ddo.Metadata.Description,
+			PublishedBy:        ddo.Metadata.Author,
 			PublishedByAddress: dt.NFT.Creator,
 			Purgatory:          ddo.Purgatory.State,
 			Consumed:           dt.OrderCount,
