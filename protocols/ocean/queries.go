@@ -15,18 +15,14 @@ import (
 	"github.com/utu-crowdsale/defi-portal-scanner/utils"
 )
 
-const OCEAN_ERC20_ADDRESS = "0x967da4048cd07ab37855c090aaf366e4ce1b9f48"
-const OCEAN_SUBGRAPH_MAINNET = "https://v4.subgraph.mainnet.oceanprotocol.com/subgraphs/name/oceanprotocol/ocean-subgraph"
-const CHAIN_ID = 1
-
 const AQUARIUS_URL_DDO = "https://v4.aquarius.oceanprotocol.com/api/aquarius/assets/ddo/"
 const PURGATORY_ASSETS = "https://raw.githubusercontent.com/oceanprotocol/list-purgatory/main/list-assets.json"
 const PURGATORY_ACCOUNTS = "https://raw.githubusercontent.com/oceanprotocol/list-purgatory/main/list-assets.json"
 
 // graphQuery gets most blockchain data from Ocean's GraphQL instance.
-func graphQuery(query string, respContainer interface{}, debug bool) (err error) {
+func graphQuery(query, subgraph string, respContainer interface{}, debug bool) (err error) {
 	// create a client (safe to share across requests)
-	client := graphql.NewClient(OCEAN_SUBGRAPH_MAINNET)
+	client := graphql.NewClient(subgraph)
 	if debug {
 		client.Log = func(s string) { log.Println(s) }
 	}
@@ -56,10 +52,10 @@ func (ae *aquariusError) Error() string {
 // description from Aquarius. The argument datatokenAddress must be the 0x...
 // Ethereum address, which will be stripped of its 0x prefix to produce the DID.
 // IMPORTANT: The DID is made from a checksummed Ethereum address, not lowercase!
-func aquariusQuery(erc721Address string) (ddo *DecentralizedDataObject, err error) {
+func aquariusQuery(erc721Address string, chainId int) (ddo *DecentralizedDataObject, err error) {
 	erc721AddressChecksumed := utils.ChecksumAddress(erc721Address)
 	h := sha256.New()
-	h.Write([]byte(fmt.Sprintf("%s%v", erc721AddressChecksumed, CHAIN_ID)))
+	h.Write([]byte(fmt.Sprintf("%s%v", erc721AddressChecksumed, chainId)))
 	did := hex.EncodeToString(h.Sum(nil))
 	requestURL := fmt.Sprintf("%sdid:op:%s", AQUARIUS_URL_DDO, did)
 	log.Println(requestURL)

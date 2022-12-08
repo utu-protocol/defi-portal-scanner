@@ -8,7 +8,7 @@ import (
 	"github.com/barkimedes/go-deepcopy"
 )
 
-func paginatedGraphQuery(baseQuery string, respContainer pageEmptiable) (pages []interface{}, err error) {
+func paginatedGraphQuery(baseQuery, subgraph string, respContainer pageEmptiable) (pages []interface{}, err error) {
 	pageSize := 100
 	i := 0
 	for {
@@ -21,7 +21,7 @@ func paginatedGraphQuery(baseQuery string, respContainer pageEmptiable) (pages [
 			query = fmt.Sprintf(baseQuery, pagingConstraint)
 		}
 
-		err = graphQuery(query, respContainer, false)
+		err = graphQuery(query, subgraph, respContainer, false)
 		if err != nil {
 			log.Println("Error while querying GraphQL for datatokens", err)
 			return
@@ -60,62 +60,67 @@ func PipelineAll(log *log.Logger) (*PipelineResult, error) {
 			orderCount
 		  }}`
 
-	pages, err := paginatedGraphQuery(baseDatatokensQuery, new(DatatokenResponsePage))
-	if err != nil {
-		log.Println("Error connecting to GraphQL", err)
-		return nil, err
-	}
-
-	var dtr []DatatokenResponse
-	for _, p := range pages {
-		page := p.(*DatatokenResponsePage)
-		dtr = append(dtr, page.Flatten()...)
-	}
-
-	var datatokens []*Datatoken
-	for _, datatokenResponse := range dtr {
-		dt, err := NewDataTokenFromDatatokenResponse(datatokenResponse)
-		if err != nil {
-			log.Println("Could not create a DataToken internal class from a datatokenResponse", err)
-			return nil, err
-		}
-		datatokens = append(datatokens, dt)
-	}
-
 	// We have Pools and Datatokens, so we can now construct Assets. A Datatoken
 	// may not have a Pool, or even a DDO associated with it. But we're only
 	// interested in Datatokens with Pools and DDOs.
 	assets := make([]*Asset, 0)
-	for _, dt := range datatokens {
+	addresses := make([]*Address, 0)
 
-		// In practice, Aquarius only knows about Datatokens which have Pools.
-		ddo, err := aquariusQuery(dt.NFT.NFTAddress)
+	for _, config := range oceanScanConfigs {
+
+		pages, err := paginatedGraphQuery(baseDatatokensQuery, config.SubgraphURL, new(DatatokenResponsePage))
 		if err != nil {
-			log.Printf("%s is not known by Aquarius, skipping: %s", dt.Address, err)
-			continue
+			log.Println("Error connecting to GraphQL", err)
+			return nil, err
 		}
 
-		asset := &Asset{
-			Name:               ddo.Metadata.Name,
-			Description:        ddo.Metadata.Description,
-			DID:                ddo.ID,
-			Datatoken:          dt,
-			PublishedBy:        ddo.Metadata.Author,
-			PublishedByAddress: dt.NFT.Creator,
-			Purgatory:          ddo.Purgatory.State,
-			Consumed:           dt.OrderCount,
-			Tags:               ddo.Metadata.Tags,
-			Categories:         ddo.Metadata.Categories,
+		var dtr []DatatokenResponse
+		for _, p := range pages {
+			page := p.(*DatatokenResponsePage)
+			dtr = append(dtr, page.Flatten()...)
 		}
-		assets = append(assets, asset)
+
+		var datatokens []*Datatoken
+		for _, datatokenResponse := range dtr {
+			dt, err := NewDataTokenFromDatatokenResponse(datatokenResponse)
+			if err != nil {
+				log.Println("Could not create a DataToken internal class from a datatokenResponse", err)
+				return nil, err
+			}
+			datatokens = append(datatokens, dt)
+		}
+
+		for _, dt := range datatokens {
+
+			// In practice, Aquarius only knows about Datatokens which have Pools.
+			ddo, err := aquariusQuery(dt.NFT.NFTAddress, config.ChainID)
+			if err != nil {
+				log.Printf("%s is not known by Aquarius, skipping: %s", dt.Address, err)
+				continue
+			}
+
+			asset := &Asset{
+				Name:               ddo.Metadata.Name,
+				Description:        ddo.Metadata.Description,
+				DID:                ddo.ID,
+				Datatoken:          dt,
+				PublishedBy:        ddo.Metadata.Author,
+				PublishedByAddress: dt.NFT.Creator,
+				Purgatory:          ddo.Purgatory.State,
+				Consumed:           dt.OrderCount,
+				Tags:               ddo.Metadata.Tags,
+				Categories:         ddo.Metadata.Categories,	
+			}
+			assets = append(assets, asset)
+		}
+
+		addresses, err = pipelineUsers(dtr, log)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	addresses, err := pipelineUsers(dtr, log)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = json.MarshalIndent(assets, "", "\t")
+	_, err := json.MarshalIndent(assets, "", "\t")
 	if err != nil {
 		return nil, err
 	}
