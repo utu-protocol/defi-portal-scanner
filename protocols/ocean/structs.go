@@ -212,3 +212,47 @@ type OrderToken struct {
 	Symbol string
 	Name   string
 }
+
+type OceanConfig struct {
+	ChainID      int
+	ERC20Address string
+	SubgraphURL  string
+}
+
+var oceanScanConfigs = []OceanConfig{
+	{
+		ChainID:      1,
+		ERC20Address: "0x967da4048cd07ab37855c090aaf366e4ce1b9f48",
+		SubgraphURL:  "https://v4.subgraph.mainnet.oceanprotocol.com/subgraphs/name/oceanprotocol/ocean-subgraph",
+	},
+	{
+		ChainID:      137,
+		ERC20Address: "0x282d8efCe846A88B159800bd4130ad77443Fa1A1",
+		SubgraphURL:  "https://v4.subgraph.polygon.oceanprotocol.com/subgraphs/name/oceanprotocol/ocean-subgraph",
+	},
+	{
+		ChainID:      56,
+		ERC20Address: "0xDCe07662CA8EbC241316a15B611c89711414Dd1a",
+		SubgraphURL:  "https://v4.subgraph.bsc.oceanprotocol.com/subgraphs/name/oceanprotocol/ocean-subgraph",
+	},
+	{
+		ChainID:      246,
+		ERC20Address: "0x593122AAE80A6Fc3183b2AC0c4ab3336dEbeE528",
+		SubgraphURL:  "https://v4.subgraph.energyweb.oceanprotocol.com/subgraphs/name/oceanprotocol/ocean-subgraph",
+	},
+	{
+		ChainID:      1285,
+		ERC20Address: "0x99C409E5f62E4bd2AC142f17caFb6810B8F0BAAE",
+		SubgraphURL:  "https://v4.subgraph.moonriver.oceanprotocol.com/subgraphs/name/oceanprotocol/ocean-subgraph",
+	},
+	{
+		ChainID:      5,
+		ERC20Address: "0xcfdda22c9837ae76e0faa845354f33c62e03653a",
+		SubgraphURL:  "https://v4.subgraph.goerli.oceanprotocol.com/subgraphs/name/oceanprotocol/ocean-subgraph",
+	},
+	{
+		ChainID:      80001,
+		ERC20Address: "0xd8992Ed72C445c35Cb4A2be468568Ed1079357c8",
+		SubgraphURL:  "https://v4.subgraph.mumbai.oceanprotocol.com/subgraphs/name/oceanprotocol/ocean-subgraph",
+	},
+}
