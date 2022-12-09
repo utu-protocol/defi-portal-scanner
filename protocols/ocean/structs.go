@@ -61,7 +61,9 @@ type DatatokenResponse struct {
 	Orders     []OrderResponse
 	NFT        struct {
 		Address string
-		Creator string
+		Creator struct {
+			ID string
+		}
 	}
 	Symbol string
 }
@@ -187,7 +189,7 @@ func NewDataTokenFromDatatokenResponse(dtr DatatokenResponse) (dt *Datatoken, er
 	if err != nil {
 		return
 	}
-	return NewDataToken(dtr.Address, dtr.Name, dtr.Symbol, uint64(orderCount), dtr.NFT.Creator, dtr.NFT.Address), nil
+	return NewDataToken(dtr.Address, dtr.Name, dtr.Symbol, uint64(orderCount), dtr.NFT.Creator.ID, dtr.NFT.Address), nil
 }
 
 type DatatokenInteraction struct {

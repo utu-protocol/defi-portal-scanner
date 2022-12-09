@@ -45,7 +45,9 @@ func PipelineAll(log *log.Logger) (*PipelineResult, error) {
 			name
 			address
 			nft {
-				  creator
+				creator {
+					id
+				}
 				address
 			}
 			orders{
@@ -109,7 +111,7 @@ func PipelineAll(log *log.Logger) (*PipelineResult, error) {
 				Purgatory:          ddo.Purgatory.State,
 				Consumed:           dt.OrderCount,
 				Tags:               ddo.Metadata.Tags,
-				Categories:         ddo.Metadata.Categories,	
+				Categories:         ddo.Metadata.Categories,
 			}
 			assets = append(assets, asset)
 		}
